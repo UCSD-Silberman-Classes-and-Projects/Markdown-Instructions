@@ -496,18 +496,18 @@ figcaption { padding: 10px 16px; font-family: var(--font-mono); font-size: 11px;
   </div>
   <p>The Robocar Docker image contains a fully configured environment including ROS2, OAK-D depth camera drivers (DepthAI), VESC motor controller drivers, all lane detection packages, and every required Python dependency. You pull it once and it persists on the Pi's storage.</p>
   <div class="callout warn"><div class="callout-icon">⚠</div><div class="callout-body"><div class="callout-title">Network Warning — Use Home Wi-Fi or Wired Ethernet</div><div class="callout-text">This image is approximately 14.7 GB. The campus Wi-Fi network frequently drops connections mid-download, corrupting the image and forcing a full re-pull. Use a home network or a wired Ethernet connection. If the download is interrupted, simply re-run the pull command — Docker automatically resumes from the last successfully downloaded layer.</div></div></div>
-  <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal — expect 20–40 minutes on a fast connection</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">docker pull</span> djnighti/ucsd_robocar:devel</pre></div>
+  <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal — expect 20–40 minutes on a fast connection</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">docker pull</span> ghcr.io/ucsd-ecemae-148/ucsd_robocar:stable</pre></div>
   <h3>Verify the Download Succeeded</h3>
   <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">docker images</span> | grep ucsd_robocar
 <span class="c"># Expected output:</span>
-<span class="ok"># djnighti/ucsd_robocar   devel   &lt;id&gt;   &lt;date&gt;   14.7GB</span></pre></div>
+<span class="ok"># ghcr.io/ucsd-ecemae-148/ucsd_robocar   stable   &lt;id&gt;   &lt;date&gt;   9.43GB</span></pre></div>
   <h3>Troubleshooting</h3>
   <div class="tw"><table>
     <thead><tr><th>Problem</th><th>Solution</th></tr></thead>
     <tbody>
       <tr><td>Download hangs or freezes</td><td>Re-run <code>docker pull</code> — it resumes automatically from the last completed layer</td></tr>
       <tr><td>"No space left on device"</td><td>Run <code>docker system prune -f</code> to remove old images and stopped containers</td></tr>
-      <tr><td>Image shows a size of 0B</td><td>The pull failed silently. Delete with <code>docker rmi djnighti/ucsd_robocar:devel</code> and re-pull</td></tr>
+      <tr><td>Image shows a size of 0B</td><td>The pull failed silently. Delete with <code>docker rmi ghcr.io/ucsd-ecemae-148/ucsd_robocar:stable</code> and re-pull</td></tr>
       <tr><td>Authentication error</td><td>The image is public. Verify your internet connection: <code>ping 8.8.8.8</code></td></tr>
     </tbody>
   </table></div>
@@ -611,7 +611,7 @@ figcaption { padding: 10px 16px; font-family: var(--font-mono); font-size: 11px;
     --volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
     --volume /etc/passwd:/etc/passwd:ro \
     --volume /etc/group:/etc/group:ro \
-    djnighti/ucsd_robocar:${2:-devel}
+    ghcr.io/ucsd-ecemae-148/ucsd_robocar:${2:-stable}
 }</pre></div>
   <h3>Step 2 — Reload and Launch the Container</h3>
   <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">source</span> ~/.bashrc
