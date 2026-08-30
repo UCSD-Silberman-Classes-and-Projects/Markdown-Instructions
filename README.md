@@ -17,6 +17,7 @@
    - [donkeycar.html — DonkeyCar Framework](#donkeycarhtml--donkeycar-framework)
    - [gps_laps.html — GPS Lap Recording](#gps_lapshtml--gps-lap-recording)
    - [index.html — ROS2 Setup & Calibration Guide](#indexhtml--ros2-setup--calibration-guide)
+   - [genai_setup.html — GenAI / Copilot Setup Guide](#genai_setuphtml--genai--copilot-setup-guide)
 4. [Recommended Reading Order for Students](#4-recommended-reading-order-for-students)
 5. [Site Architecture & Design System](#5-site-architecture--design-system)
    - [CSS Design Tokens (Variables)](#css-design-tokens-variables)
@@ -47,7 +48,7 @@ This is a **fully static, no-build-system website** — there is no JavaScript f
 
 The site is hosted on **GitHub Pages** directly from the `main` branch. Any change pushed to `main` is automatically live within a few minutes — there is no separate deployment pipeline to manage.
 
-The site covers the full hardware and software stack used in ECE/MAE 148, organized into five logical guides that a student should work through in sequence. The visual design uses the UCSD brand color palette (navy, gold, and a dark blue-grey background) and is optimized for readability during lab sessions on a laptop or secondary monitor.
+The site covers the full hardware and software stack used in ECE/MAE 148, organized into six logical guides that a student should work through in sequence. The visual design uses the UCSD brand color palette (navy, gold, and a dark blue-grey background) and is optimized for readability during lab sessions on a laptop or secondary monitor.
 
 ---
 
@@ -57,6 +58,7 @@ The site covers the full hardware and software stack used in ECE/MAE 148, organi
 ECEMAE148_RPI_Documentation.github.io/
 │
 ├── index.html          ← ROS2 Setup & Calibration Guide (the main/landing page)
+├── genai_setup.html    ← GenAI / Copilot workflow guide for ROS2 debugging and development
 ├── rpi_setup.html      ← Raspberry Pi OS flashing and configuration
 ├── vesc_setup.html     ← VESC motor controller firmware and calibration
 ├── donkeycar.html      ← DonkeyCar framework install, patching, training
@@ -67,7 +69,7 @@ ECEMAE148_RPI_Documentation.github.io/
 
 > **Important naming note:** The file currently named `index__1_.html` in some local copies is the canonical `index.html` that lives at the root of the repository and serves as the GitHub Pages landing page. Always keep the main ROS2 guide named exactly `index.html`. GitHub Pages will serve this file automatically at the root URL.
 
-All five HTML files are flat at the root level of the repository. There are no subdirectories, no asset folders, no external CSS or JS files stored in the repo. All fonts are loaded from Google Fonts via CDN and all styling is embedded in each file's `<style>` block.
+All six HTML files are flat at the root level of the repository. There are no subdirectories, no asset folders, no external CSS or JS files stored in the repo. All fonts are loaded from Google Fonts via CDN and all styling is embedded in each file's `<style>` block.
 
 ---
 
@@ -212,9 +214,26 @@ All five HTML files are flat at the root level of the repository. There are no s
 
 ---
 
+### `genai_setup.html` — GenAI / Copilot Setup Guide
+
+**Tab label in the top navigation:** `GenAI Setup`  
+**Breadcrumb shown in the top bar:** `GenAI Setup Guide`  
+**Audience:** Students using AI assistants to accelerate ROS2 debugging, code scaffolding, and project documentation while keeping the robot and build workflow as their final validation source.
+
+**What this page covers (in order):**
+
+| Section # | Title | Description |
+|-----------|-------|-------------|
+| 01 | Overview | Best practices for using GenAI as a debugging accelerator rather than a replacement for validation |
+| 02 | Recommended Workflow | Short, testable iteration loop for ROS2 and Python troubleshooting |
+| 03 | Prompting Guide | A reusable prompt template for ROS2 debugging and node scaffolding |
+| 04 | Guardrails | Rules for safe AI use, including validation, privacy, and hardware verification |
+
+---
+
 ## 4. Recommended Reading Order for Students
 
-Students should work through the five guides in this order:
+Students should work through the six guides in this order:
 
 ```
 1. rpi_setup.html     → Flash and configure the Raspberry Pi OS
@@ -223,19 +242,20 @@ Students should work through the five guides in this order:
        — OR —
 3. index.html         → Set up ROS2 Docker, calibrate lane detection, develop ROS2 nodes
 4. gps_laps.html      → (Advanced / optional) GPS RTK path recording and playback
+5. genai_setup.html   → Use AI effectively for debugging, prompting, and validation workflows
 ```
 
-DonkeyCar (`donkeycar.html`) and ROS2 (`index.html`) are parallel tracks — different project teams will use one or the other depending on their assigned project direction. The GPS Laps page (`gps_laps.html`) builds on top of the DonkeyCar framework and is used by teams specifically working on GPS-guided navigation.
+DonkeyCar (`donkeycar.html`) and ROS2 (`index.html`) are parallel tracks — different project teams will use one or the other depending on their assigned project direction. The GPS Laps page (`gps_laps.html`) builds on top of the DonkeyCar framework and is used by teams specifically working on GPS-guided navigation. The GenAI page (`genai_setup.html`) is positioned after ROS Setup in the navigation order and is intended to support debugging and iteration without replacing the hardware and robot validation loop.
 
 ---
 
 ## 5. Site Architecture & Design System
 
-Each HTML file is entirely self-contained. There is no shared CSS file or shared JavaScript file. This means that **any change to the visual design must be applied to all five files individually.** This is a deliberate trade-off that makes each page portable and deployable independently, at the cost of some duplication.
+Each HTML file is entirely self-contained. There is no shared CSS file or shared JavaScript file. This means that **any change to the visual design must be applied to all six files individually.** This is a deliberate trade-off that makes each page portable and deployable independently, at the cost of some duplication.
 
 ### CSS Design Tokens (Variables)
 
-All five pages define an identical `:root` block at the top of their `<style>` section. These CSS custom properties control every color, spacing, and font value used across the site:
+All six pages define an identical `:root` block at the top of their `<style>` section. These CSS custom properties control every color, spacing, and font value used across the site:
 
 ```css
 :root {
@@ -286,7 +306,7 @@ All five pages define an identical `:root` block at the top of their `<style>` s
 }
 ```
 
-> **If you ever need to update the brand colors or fonts, you must update this `:root` block in all five HTML files.** A simple find-and-replace across the repository will handle this efficiently.
+> **If you ever need to update the brand colors or fonts, you must update this `:root` block in all six HTML files.** A simple find-and-replace across the repository will handle this efficiently.
 
 ### Shared Layout Components
 
@@ -312,7 +332,7 @@ Every page uses the same three-panel layout:
 └──────────────┴──────────────────────────────────────────────────┘
 ```
 
-**Top Bar (`.topbar`):** Fixed at the top. Contains the brand emblem on the left, a breadcrumb text label, and the page-switcher pill tabs on the right that link to all five pages.
+**Top Bar (`.topbar`):** Fixed at the top. Contains the brand emblem on the left, a breadcrumb text label, and the page-switcher pill tabs on the right that link to all six pages.
 
 **Sidebar (`.sidebar`):** Fixed on the left. Contains the course logo/title, a search input (client-side text filter of nav items), and the numbered section navigation links for the current page. A reading progress bar sits at the bottom.
 
@@ -454,7 +474,7 @@ cp rpi_setup.html your_new_page.html
 
 The top-bar page switcher is defined **independently in each file.** There is no shared nav component. This means:
 
-- To **rename a tab label**, update the link text in all five (or more) files.
+- To **rename a tab label**, update the link text in all six (or more) files.
 - To **rename a file**, update all `href` references pointing to that file across all pages and update `index.html` if the main page filename ever changes.
 - The `active` class on a `.ps-link` should **only appear on the link that corresponds to the current page.** Every other link on that page should have no `active` class.
 
@@ -678,7 +698,7 @@ Consistency in voice and formatting is important for a course reference that mul
 
 ## 10. Common Mistakes to Avoid
 
-**Forgetting to update all five page-switcher blocks.** When you add or rename a page, you must update the `.page-switcher` nav in every file. Missing one file means users clicking that page's tab will see a broken/missing link or navigate to the wrong page.
+**Forgetting to update all six page-switcher blocks.** When you add or rename a page, you must update the `.page-switcher` nav in every file. Missing one file means users clicking that page's tab will see a broken/missing link or navigate to the wrong page.
 
 **Breaking section anchor IDs.** The sidebar nav links use `href="#sN"` and the JavaScript `IntersectionObserver` watches `div.section-anchor[id]`. If you add or reorder sections and the IDs get out of sync with the nav links, the active-highlighting will break. Always verify IDs match between the `.section-anchor` div and the corresponding `.nav-link` href.
 
@@ -715,7 +735,7 @@ There is currently no formal versioning system in this repository. It is recomme
 ```html
 <!-- 
   CHANGELOG
-  2026-01 (J. Cervantes): Initial release. All five pages created.
+  2026-01 (J. Cervantes): Initial release. All six pages created.
   2026-04 (Future TA): Updated Docker image tag to v2.x. Added Section 17 on LiDAR.
 -->
 ```
