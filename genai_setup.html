@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECE/MAE 148 — GenAI Setup & ROS2 Quick Reference</title>
+  <meta name="description" content="AI-assisted workflows for UCSD Robocar ROS2 development, debugging, and project documentation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ucsd-navy: #002E6D;
+      --ucsd-blue: #00629B;
+      --ucsd-gold: #C69214;
+      --ucsd-gold-lt: #E8B931;
+      --bg: #09111E;
+      --bg2: #0D1A2D;
+      --surface: #111F35;
+      --surface2: #162643;
+      --border: #1E3355;
+      --border-lt: #2A4670;
+      --text: #DCE8F5;
+      --text-muted: #7A9EC4;
+      --text-dim: #4D6E96;
+      --accent: #00A8E8;
+      --green: #00C896;
+      --yellow: #F0B429;
+      --red: #F04E37;
+      --purple: #9B7FE8;
+      --code-bg: #060E1A;
+      --code-border: #1A2E4A;
+      --sidebar-w: 290px;
+      --topbar-h: 60px;
+      --r: 6px;
+      --font-body: 'Sora', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --ease: cubic-bezier(0.4,0,0.2,1);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--topbar-h) + 20px); }
+    body {
+      margin: 0; font-family: var(--font-body); background: var(--bg); color: var(--text);
+      line-height: 1.7; min-height: 100vh; overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(0,98,155,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,98,155,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 200; height: var(--topbar-h); background: rgba(9,17,30,0.95); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding-left: var(--sidebar-w); }
+    .topbar-inner { display: flex; align-items: center; gap: 16px; padding: 0 32px; width: 100%; }
+    .topbar-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .topbar-emblem { width: 36px; height: 36px; background: var(--ucsd-navy); border: 2px solid var(--ucsd-gold); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .topbar-name { font-size: 15px; font-weight: 700; color: var(--text); }
+    .topbar-course { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+    .topbar-divider { width: 1px; height: 28px; background: var(--border); }
+    .topbar-breadcrumb { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+    .topbar-spacer { flex: 1; }
+    .page-switcher { display: flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--border-lt); border-radius: 20px; padding: 3px; }
+    .ps-link { font-family: var(--font-mono); font-size: 10px; font-weight: 600; padding: 4px 14px; border-radius: 16px; text-decoration: none; color: var(--text-muted); }
+    .ps-link:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+    .ps-link.active { background: var(--ucsd-gold); color: var(--bg); }
+    .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-header { padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--ucsd-navy); }
+    .sidebar-logo-row { display: flex; align-items: center; gap: 10px; }
+    .sidebar-logo { width: 32px; height: 32px; border-radius: 6px; background: rgba(198,146,20,0.2); border: 1.5px solid var(--ucsd-gold); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); color: var(--ucsd-gold); font-size: 12px; font-weight: 700; }
+    .sidebar-title { font-size: 13px; font-weight: 700; color: #fff; }
+    .sidebar-sub { font-size: 10px; color: rgba(255,255,255,0.5); font-family: var(--font-mono); margin-top: 2px; }
+    .nav-scroll { overflow-y: auto; flex: 1; padding-bottom: 40px; }
+    .nav-group-label { font-family: var(--font-mono); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.8px; color: var(--text-dim); padding: 16px 20px 6px; display: flex; align-items: center; gap: 8px; }
+    .nav-group-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .nav-link { display: flex; align-items: center; gap: 10px; padding: 7px 20px; text-decoration: none; color: var(--text-muted); font-size: 12.5px; border-left: 2px solid transparent; }
+    .nl-num { font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.03); border-left-color: var(--border-lt); }
+    .nav-link.active { color: var(--ucsd-gold-lt); border-left-color: var(--ucsd-gold); background: rgba(198,146,20,0.12); }
+    .layout { display: flex; padding-top: var(--topbar-h); min-height: 100vh; }
+    .main { margin-left: var(--sidebar-w); flex: 1; position: relative; z-index: 1; }
+    .hero {
+      background: radial-gradient(ellipse 80% 100% at 100% 50%, rgba(0,98,155,0.25), transparent),
+      linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+      border-bottom: 1px solid var(--border); padding: 72px 0 60px;
+    }
+    .hero-inner { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+    .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--ucsd-gold); background: rgba(198,146,20,0.12); border: 1px solid rgba(198,146,20,0.3); padding: 5px 14px; border-radius: 20px; }
+    .hero-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ucsd-gold); }
+    .hero h1 { font-size: clamp(32px, 4vw, 54px); line-height: 1.08; letter-spacing: -1.5px; margin: 0 0 20px; }
+    .hero h1 span { color: var(--ucsd-gold); }
+    .hero-desc { font-size: 16px; color: var(--text-muted); max-width: 780px; }
+    .hero-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+    .hero-chip { background: var(--surface); border: 1px solid var(--border-lt); color: var(--text-muted); font-size: 12px; padding: 6px 14px; border-radius: 20px; font-family: var(--font-mono); }
+    .content {
+      max-width: 1180px; margin: 0 auto; padding: 0 32px 80px;
+    }
+    .section { padding-top: 64px; }
+    .section-anchor { display: block; visibility: hidden; height: 0; margin-top: calc(-1 * (var(--topbar-h) + 24px)); padding-top: calc(var(--topbar-h) + 24px); }
+    .sec-header { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .sec-num { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--ucsd-gold); background: rgba(198,146,20,0.12); border: 1px solid rgba(198,146,20,0.3); padding: 4px 12px; border-radius: 20px; }
+    .sec-title-block { flex: 1; }
+    .sec-title-block h2 { font-size: 24px; margin: 0; letter-spacing: -0.5px; }
+    .sec-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+    p { color: var(--text-muted); margin-bottom: 14px; font-size: 14px; line-height: 1.75; }
+    p strong { color: var(--text); }
+    p code, li code { font-family: var(--font-mono); font-size: 12px; background: rgba(0,168,232,0.1); color: var(--accent); padding: 1px 5px; border-radius: 3px; }
+    ul, ol { margin: 0 0 18px 1.2rem; padding-left: 1rem; }
+    li { margin-bottom: 8px; color: var(--text-muted); font-size: 14px; line-height: 1.7; }
+    h3 { font-size: 15px; font-weight: 600; color: var(--accent); margin: 28px 0 10px; }
+    .callout { display: flex; gap: 14px; padding: 16px 18px; border-radius: var(--r); margin: 16px 0; border: 1px solid; }
+    .callout-icon { font-size: 16px; flex-shrink: 0; }
+    .callout-body { flex: 1; min-width: 0; }
+    .callout-title { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 5px; }
+    .callout.info { background: rgba(0,168,232,0.07); border-color: rgba(0,168,232,0.25); }
+    .callout.warn { background: rgba(240,78,55,0.07); border-color: rgba(240,78,55,0.28); }
+    .callout.new { background: rgba(155,127,232,0.07); border-color: rgba(155,127,232,0.28); }
+    .callout.tip { background: rgba(0,200,150,0.07); border-color: rgba(0,200,150,0.25); }
+    .callout.info .callout-title { color: var(--accent); }
+    .callout.warn .callout-title { color: var(--red); }
+    .callout.new .callout-title { color: var(--purple); }
+    .callout.tip .callout-title { color: var(--green); }
+    .callout-text { color: var(--text-muted); line-height: 1.65; }
+    .steps { display: flex; flex-direction: column; gap: 14px; margin: 16px 0; }
+    .step { display: flex; gap: 18px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); }
+    .step-num { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: rgba(198,146,20,0.12); border: 1.5px solid rgba(198,146,20,0.45); color: var(--ucsd-gold); font-family: var(--font-mono); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .step-body { flex: 1; }
+    .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .step-desc { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+    .cb { background: var(--code-bg); border: 1px solid var(--code-border); border-radius: var(--r); margin: 12px 0; overflow: hidden; }
+    .cb-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; background: var(--surface); border-bottom: 1px solid var(--code-border); }
+    .cb-label { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-dim); }
+    pre {
+      margin: 0; padding: 18px 20px; overflow-x: auto; font-family: var(--font-mono);
+      font-size: 12.5px; line-height: 1.7; color: #C9D8EC; white-space: pre-wrap; word-break: break-word;
+    }
+    .tw { overflow-x: auto; margin: 14px 0; border-radius: var(--r); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    th { text-align: left; padding: 11px 16px; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+    td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--text-muted); vertical-align: top; word-break: break-word; }
+    .divider { height: 1px; background: var(--border); margin: 48px 0; }
+    @media (max-width: 1024px) {
+      .hero-inner, .content { padding-left: 24px; padding-right: 24px; }
+    }
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .topbar { padding-left: 0; }
+      .main { margin-left: 0; }
+      .hero-inner, .content { padding-left: 16px; padding-right: 16px; }
+      .page-switcher { display: none; }
+      .sec-header { display: block; }
+      .step { flex-direction: column; }
+      table { table-layout: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="#hero" class="topbar-brand">
+        <div class="topbar-emblem">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+            <circle cx="12" cy="12" r="5" stroke="#C69214" stroke-width="2"/>
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="#C69214" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="12" cy="12" r="2" fill="#C69214"/>
+          </svg>
+        </div>
+        <div>
+          <div class="topbar-name">UCSD Robocar</div>
+          <div class="topbar-course">ECE / MAE 148</div>
+        </div>
+      </a>
+      <div class="topbar-divider"></div>
+      <span class="topbar-breadcrumb">GenAI Setup Guide</span>
+      <div class="topbar-spacer"></div>
+      <div class="page-switcher">
+        <a href="./donkeysim.html" class="ps-link">DonkeySim</a>
+        <a href="./rpi_setup.html" class="ps-link">RPI Setup</a>
+        <a href="./vesc_setup.html" class="ps-link">VESC Setup</a>
+        <a href="./donkeycar.html" class="ps-link">DonkeyCar</a>
+        <a href="./gps_laps.html" class="ps-link">GPS Laps</a>
+        <a href="./index.html" class="ps-link">ROS Setup</a>
+        <a href="./genai_setup.html" class="ps-link active">GenAI Setup</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-row">
+        <div class="sidebar-logo">AI</div>
+        <div>
+          <div class="sidebar-title">GenAI Docs</div>
+          <div class="sidebar-sub">ECE/MAE 148 · UCSD</div>
+        </div>
+      </div>
+    </div>
+    <div class="nav-scroll">
+      <div class="nav-group-label">Core</div>
+      <a class="nav-link active" href="#s1"><span class="nl-num">01</span>Overview</a>
+      <a class="nav-link" href="#s2"><span class="nl-num">02</span>Setup</a>
+      <a class="nav-link" href="#s3"><span class="nl-num">03</span>GitHub</a>
+      <a class="nav-link" href="#s4"><span class="nl-num">04</span>AI Tools</a>
+      <a class="nav-link" href="#s5"><span class="nl-num">05</span>Robot SSH</a>
+      <a class="nav-link" href="#s6"><span class="nl-num">06</span>Prompting</a>
+      <a class="nav-link" href="#s7"><span class="nl-num">07</span>Debugging</a>
+      <a class="nav-link" href="#s8"><span class="nl-num">08</span>Example</a>
+    </div>
+  </nav>
+
+  <main class="layout">
+    <div class="main">
+      <div class="hero" id="hero">
+       <div class="hero-inner">
+         <div class="hero-eyebrow"><div class="hero-eyebrow-dot"></div>UCSD Jacobs School of Engineering</div>
+         <h1>GenAI-Aided<br><span>Coding for Robotics Projects</span></h1>
+         <p class="hero-desc">Robotics projects are hard because they combine hardware, firmware, operating systems, Python environments, and communication protocols. Generative AI coding agents can compress the feedback loop between “something is wrong” and “I know what’s wrong and how to fix it,” provided you treat them as a development partner rather than a black box.</p>
+         <div class="hero-chips">
+           <div class="hero-chip">🤖 Robotics</div>
+           <div class="hero-chip">🧠 GenAI</div>
+           <div class="hero-chip">🔐 GitHub</div>
+           <div class="hero-chip">📡 SSH</div>
+         </div>
+       </div>
+     </div>
+
+     <div class="content">
+       <div class="section-anchor" id="s1"></div>
+       <section class="section">
+         <div class="sec-header">
+           <span class="sec-num">01</span>
+           <div class="sec-title-block">
+             <h2>Introduction</h2>
+             <div class="sec-subtitle">What this guide is, who it is for, and how it is organized</div>
+           </div>
+         </div>
+         <p><strong>Robotics projects are hard.</strong> Not because any single piece is impossible, but because you are simultaneously managing hardware, firmware, operating systems, Python environments, and communication protocols. A servo that does not respond could be a wiring issue, a serial permission error, a bad baud rate, or a logic bug in code you wrote an hour ago. Most project hours disappear while you isolate which layer is failing.</p>
+         <p><strong>Generative AI coding agents</strong> — such as Claude Code, GitHub Copilot, Cursor, and Ollama — change what is possible for a student working alone or in a small team. They can read your entire codebase, explain unfamiliar code, generate hypotheses about why something is broken, suggest fixes, and help you write better code faster. Used well, they compress the feedback loop between “something is wrong” and “I understand what is wrong and how to fix it” from hours to minutes.</p>
+         <p>Used poorly — pasting errors without context, accepting suggestions blindly, or treating the agent as a search engine — they waste time and introduce bugs you do not understand. This guide teaches you how to use them well.</p>
+         <p>This guide is for students in robotics courses at UC San Diego’s Jacobs School of Engineering and Halicioğlu Data Science Institute working on a robotics project involving a Raspberry Pi, hardware, and Python or ROS 2 code. It does not assume prior experience with AI coding tools, Git, or Linux systems. You do not need to be a software engineer. You need to be curious, willing to read error messages carefully, and willing to use AI tools as thinking partners rather than answer machines.</p>
+         <p>This guide covers four things:</p>
+         <ul>
+           <li>How to set up your environment: Git, GitHub, SSH keys, VS Code Remote SSH, and your AI coding agent of choice.</li>
+           <li>Git and GitHub fundamentals: version control to avoid losing work and collaborate safely.</li>
+           <li>How to connect to and develop on your robot: working over SSH and using VS Code Remote SSH to make the Pi feel local.</li>
+           <li>How to use GenAI tools effectively: prompting, debugging, review, and where LLMs fit into robotics beyond writing code.</li>
+         </ul>
+         <p>The guide is structured as a linear workflow. Each section builds on the last. You move between three environments:</p>
+         <ul>
+           <li>Your laptop, where you write code, run your AI agent, and manage Git.</li>
+           <li>GitHub, where your code is backed up and version-controlled in the cloud.</li>
+           <li>The Raspberry Pi, where your code runs on real hardware.</li>
+         </ul>
+         <p>One note on expectations: AI coding agents are powerful but not infallible. They hallucinate imports, miss edge cases, and sometimes suggest changes that look plausible but introduce subtle bugs. A core theme of this guide is learning to use these tools critically — understanding what they produce, verifying it, and catching mistakes before they become problems on the car.</p>
+         <div class="callout new"><div class="callout-icon">✦</div><div class="callout-body"><div class="callout-title">Key message</div><div class="callout-text">Use AI as a thinking partner: understand the code, verify the fix, and catch mistakes before they become problems on the vehicle.</div></div></div>
+       </section>
+
+       <div class="section-anchor" id="s2"></div>
+       <section class="section">
+         <div class="sec-header">
+           <span class="sec-num">02</span>
+           <div class="sec-title-block">
+             <h2>Prerequisites / Environment Setup</h2>
+             <div class="sec-subtitle">Install the tools you need before you begin working on the robot</div>
+           </div>
+         </div>
+         <h3>Installing Git locally</h3>
+         <p>Git is the version control system that tracks every change you make to code. It is how your laptop, GitHub, and Raspberry Pi stay in sync. Everything else in this guide depends on it.</p>
+         <p>First, check whether Git is already installed:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Check Git</span></div><pre>git --version</pre></div>
+         <p>If you see a version string, you are ready. If you get “command not found,” install Git for your OS:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Install Git</span></div><pre># macOS
+xcode-select --install
+# or
+brew install git
+
+# Linux (Ubuntu/Debian)
+sudo apt update && sudo apt install git
+
+# Windows
+# Download Git from https://git-scm.com/download/win</pre></div>
+         <p>After installing, tell Git who you are. Use the same email as your GitHub account:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Git identity</span></div><pre>git config --global user.name "Your Name"
+git config --global user.email "you@ucsd.edu"
+git config --global --list</pre></div>
+         <div class="callout info"><div class="callout-icon">ℹ</div><div class="callout-body"><div class="callout-title">Windows note</div><div class="callout-text">When installing Git on Windows, choose “Checkout as-is, commit Unix-style line endings.” This prevents line-ending conflicts when your code runs on the Linux-based Raspberry Pi.</div></div></div>
+
+         <h3>GitHub account setup</h3>
+         <p>GitHub is where the DonkeyCar project lives publicly, where your fork will live, and where you will submit your pull request.</p>
+         <div class="steps">
+           <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Create an account</div><div class="step-desc">Go to <code>github.com/signup</code>. Use your UCSD email address so you can access the Student Developer Pack.</div></div></div>
+           <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Verify your email</div><div class="step-desc">Check your UCSD inbox for a verification email and click the link before trying to push code or open a pull request.</div></div></div>
+           <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Activate the Student Developer Pack</div><div class="step-desc">Visit <code>education.github.com/pack</code> and verify your UCSD enrollment. This gives you free GitHub Copilot and related tools used in this guide.</div></div></div>
+           <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Enable 2FA</div><div class="step-desc">Use an authenticator app rather than SMS. GitHub requires this for accounts that push code.</div></div></div>
+         </div>
+         <p>If you already have a GitHub account with a personal email, you do not need to create a new one. Add your UCSD email as a secondary address so GitHub can verify your student status. Then activate the Student Developer Pack on that account. The benefits apply to the account, not the email address alone.</p>
+
+         <h3>SSH key generation for GitHub</h3>
+         <p>SSH keys let your laptop authenticate with GitHub without typing a password every time you push code. You generate a key pair: a private key that stays on your machine and a public key that you give to GitHub.</p>
+         <div class="callout warn"><div class="callout-icon">⚠</div><div class="callout-body"><div class="callout-title">Important</div><div class="callout-text">Never share your private key (<code>id_ed25519</code>). The public key (<code>id_ed25519.pub</code>) is the one you paste into GitHub.</div></div></div>
+         <p>Check whether you already have a key:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Check existing SSH keys</span></div><pre>ls ~/.ssh</pre></div>
+         <p>If there is no key, generate one:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Generate SSH key</span></div><pre>ssh-keygen -t ed25519 -C "you@ucsd.edu"
+
+# Accept the default file location by pressing Enter
+# Optionally add a passphrase; otherwise press Enter to skip it
+
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+
+# macOS only
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519</pre></div>
+         <p>Then copy the public key and add it to GitHub:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Add SSH key to GitHub</span></div><pre># macOS
+cat ~/.ssh/id_ed25519.pub
+pbcopy < ~/.ssh/id_ed25519.pub
+
+# Windows (Git Bash)
+clip < ~/.ssh/id_ed25519.pub
+
+# Test the connection
+ssh -T git@github.com</pre></div>
+         <p>Then go to <code>github.com/settings/keys</code>, click “New SSH key,” paste the public key, and click “Add SSH key.” The test command should show a success message like “Hi &lt;your-username&gt;! You’ve successfully authenticated.”</p>
+       </section>
+
+       <div class="section-anchor" id="s3"></div>
+       <section class="section">
+         <div class="sec-header">
+           <span class="sec-num">03</span>
+           <div class="sec-title-block">
+             <h2>Choose Your AI Coding Agent</h2>
+             <div class="sec-subtitle">Start with one tool and learn it well</div>
+           </div>
+         </div>
+         <p>Pick one AI coding agent and use it consistently through this guide. The goal is not to try every tool — it is to choose the one that fits your workflow and then learn how to use it well. The strategies in this guide are tool-agnostic, but your setup varies by product.</p>
+         <div class="tw"><table>
+           <thead><tr><th>Tool</th><th>Best for</th><th>Reason it matters</th></tr></thead>
+           <tbody>
+             <tr><td><strong>Claude Code</strong></td><td>Whole-codebase reasoning and terminal workflows</td><td>Best fit for this guide because it understands the entire project context at once.</td></tr>
+             <tr><td><strong>ChatGPT Codex</strong></td><td>Cloud-based code questions and code suggestions</td><td>Useful for individual files or quick explanations; best for file-by-file analysis.</td></tr>
+             <tr><td><strong>GitHub Copilot</strong></td><td>Inline completion and VS Code chat</td><td>Built into VS Code and free through the GitHub Student Developer Pack.</td></tr>
+             <tr><td><strong>Cursor</strong></td><td>AI-first editor with inline chat and edits</td><td>Very good for code navigation and contextual editing in an editor-first workflow.</td></tr>
+             <tr><td><strong>Ollama</strong></td><td>Local/offline AI models</td><td>Runs on your laptop without an API key; ideal if you want privacy or offline development.</td></tr>
+           </tbody>
+         </table></div>
+
+         <h3>Claude Code</h3>
+         <p>Claude Code is a terminal-based agent by Anthropic that can read your entire repo, run commands, edit files, and explain code in context.</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Claude Code setup</span></div><pre># Install Node.js LTS from nodejs.org
+node --version
+npm install -g @anthropic-ai/claude-code
+claude
+
+# Test it
+What Python version is on this machine?</pre></div>
+         <p>The official Claude Code extension is available in the VS Code Marketplace. It is the recommended way to use Claude Code inside VS Code because it gives you a sidebar panel with inline diffs and review context before edits are applied.</p>
+
+         <h3>ChatGPT Codex</h3>
+         <p>ChatGPT Codex is OpenAI’s cloud-based coding agent. You upload files or paste code, ask questions, and receive explanations or suggested changes.</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">ChatGPT Codex setup</span></div><pre># Web setup
+# 1. Sign up at chat.openai.com
+# 2. Use GPT-4o mini for free or GPT-4o/Codex with ChatGPT Plus
+# 3. Upload the relevant DonkeyCar file(s) or paste them into a chat
+
+# Example prompt
+"What does this file do? Where is the servo angle being set?"</pre></div>
+         <p>For large codebase questions, Claude Code or Cursor will usually be more efficient than Codex because Codex does not have persistent file-system access the way a local editor agent does.</p>
+
+         <h3>GitHub Copilot</h3>
+         <p>GitHub Copilot provides inline autocomplete and a chat panel inside VS Code. It is free with the GitHub Student Developer Pack.</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">GitHub Copilot setup</span></div><pre># 1. Activate Copilot through the Student Developer Pack
+# 2. Install the extensions in VS Code
+# GitHub.copilot
+# GitHub.copilot-chat
+
+# Terminal setup
+npm install -g @githubnext/github-copilot-cli
+github-copilot-cli auth
+
+# Example shell prompt
+?? how do I undo my last commit without losing changes</pre></div>
+
+         <h3>Cursor</h3>
+         <p>Cursor is a VS Code fork with AI built into every panel. The free tier includes GPT-4o and Claude Sonnet.</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Cursor setup</span></div><pre># 1. Download Cursor from cursor.com
+# 2. Import your VS Code settings, keybindings, and extensions
+# 3. Sign in and choose a model in Settings → Models
+# 4. Test it with Cmd+L / Ctrl+L or select code and press Cmd+K</pre></div>
+
+         <h3>Ollama</h3>
+         <p>Ollama lets you run a local LLM on your laptop without internet access or an API key. It is great for private, offline coding work, and requires at least 8 GB RAM; 16 GB is recommended for stronger models.</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Ollama setup</span></div><pre># Install Ollama from ollama.com
+# or macOS/Linux:
+curl -fsSL https://ollama.com/install.sh | sh
+
+ollama pull qwen2.5-coder:7b
+ollama run qwen2.5-coder:7b
+
+# In VS Code, install the Continue extension and point it at Ollama</pre></div>
+       </section>
+
+       <div class="section-anchor" id="s4"></div>
+       <section class="section">
+         <div class="sec-header">
+           <span class="sec-num">04</span>
+           <div class="sec-title-block">
+             <h2>Git/GitHub Fundamentals</h2>
+             <div class="sec-subtitle">The concepts and commands you should know before making changes</div>
+           </div>
+         </div>
+         <p>Git is software that runs on your laptop. It tracks changes to your codebase over time and lets you save snapshots of your work called commits, create branches, and restore earlier versions if something breaks. GitHub is a website that hosts Git repositories in the cloud so your team can share and review code.</p>
+         <div class="tw"><table>
+           <thead><tr><th>Concept</th><th>What it means</th></tr></thead>
+           <tbody>
+             <tr><td><strong>Repository</strong></td><td>The full project folder with code, history, and configuration tracked by Git.</td></tr>
+             <tr><td><strong>Fork</strong></td><td>A personal copy of someone else’s repository on GitHub under your account.</td></tr>
+             <tr><td><strong>Clone</strong></td><td>Download a repository from GitHub to your laptop.</td></tr>
+             <tr><td><strong>Branch</strong></td><td>A parallel line of development where you can make changes without touching the main code.</td></tr>
+             <tr><td><strong>Commit</strong></td><td>A saved snapshot of your changes with a description.</td></tr>
+             <tr><td><strong>Push</strong></td><td>Upload your local commits to GitHub.</td></tr>
+             <tr><td><strong>Pull</strong></td><td>Download changes from GitHub to your local machine.</td></tr>
+             <tr><td><strong>Pull Request</strong></td><td>A proposed change to merge your branch into another repository.</td></tr>
+             <tr><td><strong>Upstream</strong></td><td>The original repository you forked from, such as <code>github.com/autorope/donkeycar</code>.</td></tr>
+           </tbody>
+         </table></div>
+
+         <p><strong>Git commands cheat sheet:</strong></p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Git commands</span></div><pre># Get code
+git clone &lt;url&gt;
+git fetch upstream
+
+git pull
+
+# Work on branches
+git branch
+git checkout -b &lt;branch-name&gt;
+git checkout &lt;branch-name&gt;
+
+# Save changes
+git status
+git diff
+git add &lt;file&gt;
+git add .
+git commit -m "Your message here"
+
+# Sync your fork
+git push origin &lt;branch-name&gt;
+git push -u origin &lt;branch-name&gt;</pre></div>
+         <div class="callout tip"><div class="callout-icon">✓</div><div class="callout-body"><div class="callout-title">Helpful tip</div><div class="callout-text">If you cannot remember a Git command, ask your AI agent: “What is the Git command to [do what I want]?” This is one of the best uses of an AI coding agent — Git syntax is hard to memorize and easy to look up.</div></div></div>
+       </section>
+
+       <div class="section-anchor" id="s5"></div>
+       <section class="section">
+         <div class="sec-header">
+           <span class="sec-num">05</span>
+           <div class="sec-title-block">
+             <h2>Connecting to the Robot</h2>
+             <div class="sec-subtitle">Connect to the Pi, add hotspots, and work directly from VS Code</div>
+           </div>
+         </div>
+         <h3>Connecting to new hotspots</h3>
+         <p>The Raspberry Pi on your DonkeyCar is pre-configured to connect to the campus Wi-Fi network. When you are in the lab, your laptop joins the same network and can reach the Pi directly by IP address. If you want to develop off-campus, add your home Wi-Fi or phone hotspot to the Pi first while still on campus.</p>
+         <p><strong>Option A — Add your network via terminal:</strong></p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Add network via Pi terminal</span></div><pre>sudo nmcli device wifi connect "YourNetworkName" password "YourPassword"
+nmcli connection show</pre></div>
+         <p><strong>Option B — Edit the config file:</strong></p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">wpa_supplicant config</span></div><pre>sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
+
+network={
+   ssid="YourNetworkName"
+   psk="YourPassword"
+   priority=1
+}</pre></div>
+         <p>Save the file, then reboot the Pi using <code>sudo reboot</code> for the changes to take effect.</p>
+
+         <h3>VS Code Remote SSH</h3>
+         <p>VS Code Remote SSH lets you open the Raspberry Pi’s filesystem directly inside VS Code on your laptop. You get full syntax highlighting, your extensions, and an integrated terminal that runs commands on the Pi.</p>
+         <div class="steps">
+           <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Install the Remote-SSH extension</div><div class="step-desc">Open VS Code, press <code>Ctrl+Shift+X</code> or <code>Cmd+Shift+X</code>, search for <code>Remote-SSH</code>, and install the Microsoft extension.</div></div></div>
+           <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Add the robot as a new host</div><div class="step-desc">Open the Command Palette and run <code>Remote-SSH: Add New SSH Host</code>. Enter <code>ssh pi@ucsdrobocars-DSC-T#</code> and replace <code>#</code> with your team number.</div></div></div>
+           <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Connect</div><div class="step-desc">Choose the host and enter the Pi password. The first time, VS Code installs the Remote-SSH server on the Pi.</div></div></div>
+           <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Open the repo folder</div><div class="step-desc">Once connected, open the folder containing your cloned DonkeyCar fork. In the integrated terminal, run <code>hostname</code> to confirm you are on the Pi.</div></div></div>
+         </div>
+       </section>
+
+       <div class="section-anchor" id="s6"></div>
+       <section class="section">
+         <div class="sec-header">
+           <span class="sec-num">06</span>
+           <div class="sec-title-block">
+             <h2>Development with Generative AI</h2>
+             <div class="sec-subtitle">Prompt for explanation, minimal changes, and verification</div>
+           </div>
+         </div>
+         <p>AI coding agents are not search engines. The quality of what they produce depends almost entirely on the quality of the context you give them. The strategies below work regardless of which tool you picked.</p>
+         <ul>
+           <li><strong>Give the agent the full file, not just the error.</strong> Pasting only an error message forces the agent to guess at context. Paste the relevant file or class alongside the error.</li>
+           <li><strong>Tell the agent what the code is supposed to do.</strong> This clarifies intent before a fix is proposed.</li>
+           <li><strong>Ask for explanation before asking for a fix.</strong> Start by asking what a function does, then ask how to fix it or why it fails.</li>
+           <li><strong>Request the minimal change.</strong> Ask for the smallest edit that fixes the problem without broad rewrites.</li>
+           <li><strong>Ask the agent to explain its own suggestion.</strong> If it cannot explain the code it proposes, do not trust it yet.</li>
+           <li><strong>Use the agent for rubber duck debugging.</strong> Describe the problem as if you are explaining it to a colleague. This often surfaces the answer before the agent responds.</li>
+         </ul>
+         <div class="callout info"><div class="callout-icon">✦</div><div class="callout-body"><div class="callout-title">Review process</div><div class="callout-text">Before accepting a suggestion, read it line by line, compare it to the original, check imports, run it, and ask the agent to review its own fix for edge cases.</div></div></div>
+         <p>The most important habit is simple: <strong>never paste AI-generated code into the codebase without reading and understanding every line first.</strong> If you cannot explain why each line exists, you are not ready to push it.</p>
+
+         <h3>Using your AI agent as a development partner</h3>
+         <p>Use the agent proactively, not just reactively. Start every session with a context dump: paste the relevant files, describe what you are trying to do, and explain what you changed or discovered previously. Use it to plan before code, not after code. Ask it to anticipate review feedback and narrate unexpected behavior as soon as something goes wrong. This keeps the loop short and prevents the agent from operating on incomplete context.</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Example context prompt</span></div><pre>I'm working on a VESC steering bug. Here are the relevant files. I am trying to fix the bug where steering values can exceed -1 to 1. Yesterday I traced the issue to the run() method in vesc.py but haven't made the fix yet. Help me think through the right approach before I start editing.</pre></div>
+       </section>
+
+       <div class="section-anchor" id="s7"></div>
+       <section class="section">
+         <div class="sec-header">
+           <span class="sec-num">07</span>
+           <div class="sec-title-block">
+             <h2>Debugging Strategies</h2>
+             <div class="sec-subtitle">Use a structured debugging loop with the robot hardware in mind</div>
+           </div>
+         </div>
+         <h3>Read the full traceback before doing anything else</h3>
+         <p>When DonkeyCar crashes, Python prints a traceback. The single most common debugging mistake is reading only the last line — the exception message — and immediately pasting that into the agent. The last line tells you what went wrong. The lines above it tell you how the code got there. Always paste the full traceback.</p>
+         <p>Read it yourself first, from the bottom up:</p>
+         <ul>
+           <li>The bottom line is the exception type and message.</li>
+           <li>The lines immediately above it show the function and line number where it crashed.</li>
+           <li>The lines above those show the chain of calls that led there.</li>
+         </ul>
+         <p>Ask yourself: does the crash location make sense given what I just changed? Is this in my code or in DonkeyCar internals? Answering these questions before involving the agent often surfaces the answer before you even finish typing the prompt.</p>
+
+         <h3>Hypothesis-first debugging loop</h3>
+         <p>When you paste an error into your agent, do not just ask “How do I fix this?” Ask it to generate hypotheses first:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Hypothesis prompt</span></div><pre>"Here's the full traceback and the relevant code. Before suggesting a fix, give me three possible root causes ordered by likelihood. For each one, tell me how I would verify whether that is actually the problem."</pre></div>
+         <p>This forces a diagnostic step before a solution step and gives you a mental model of the problem rather than a command to run blindly.</p>
+
+         <h3>Hardware vs. software triage</h3>
+         <p>Many time sinks on the Pi are really hardware problems, and vice versa. Before diving into code, run through this triage:</p>
+         <ul>
+           <li><strong>Is the problem consistent or intermittent?</strong> Consistent failures are usually software. Intermittent ones often point to hardware or environment issues such as loose cables, power instability, or serial dropouts.</li>
+           <li><strong>Did it ever work?</strong> If the code worked yesterday and does not today, suspect hardware or environment first.</li>
+           <li><strong>Is the error in your code or in DonkeyCar internals?</strong> Look at the traceback: if the crash is in a file you did not touch, your change may be passing a bad value into an existing function rather than causing a bug in the function itself.</li>
+         </ul>
+         <p>Quick hardware checks before deeper software debugging:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Quick hardware checks</span></div><pre>ls /dev/ttyACM*
+ls /dev/video*
+vcgencmd get_throttled
+free -h
+df -h</pre></div>
+         <p>Paste the output of suspicious checks into your agent along with your error. Hardware state context greatly improves the quality of the diagnosis.</p>
+
+         <h3>Debugging serial and hardware communication</h3>
+         <p>If your change touches the VESC, servo, or any hardware interface, new failure modes appear that pure software debugging will not catch.</p>
+         <ul>
+           <li><strong>Baud rate and port mismatches:</strong> the VESC communicates over serial at a specific rate, and the port or configuration must match.</li>
+           <li><strong>Timing issues:</strong> code that works at low speed may fail under load because commands arrive faster than the hardware can process them.</li>
+           <li><strong>Permission errors on device files:</strong> if you see <code>PermissionError</code> when opening <code>/dev/ttyACM0</code>, the user likely needs DBus or dialout access.</li>
+         </ul>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Permission fix</span></div><pre>sudo usermod -aG dialout $USER
+# Log out and reconnect for the group change to take effect</pre></div>
+
+         <h3>Reading logs when there is no traceback</h3>
+         <p>Sometimes the car crashes without printing anything useful. A few techniques help recover useful information:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Log output to a file</span></div><pre>cd ~/mycar
+python3 manage.py drive 2>&1 | tee drive_log.txt</pre></div>
+         <p>After a crash, open the log file and look at the last few lines before the exit. You can also inspect the system log:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">System journal</span></div><pre>journalctl -n 200 --no-pager</pre></div>
+         <p>Another low-tech approach is temporary <code>print()</code> statements at relevant points in the logic so you can trace execution and identify where it fails. Remove them before committing.</p>
+
+         <h3>Using your agent for rubber duck debugging</h3>
+         <p>Sometimes you do not have an error — you have unexpected behavior. The car drives but pulls left, the model performs worse than before, or the camera feed is frozen. These are harder to debug because there is no traceback to paste. The most effective approach is to describe the issue precisely and completely as if you are explaining it to a colleague.</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Rubber duck prompt</span></div><pre>"Here's what I expected to happen: ...
+Here's what actually happened: ...
+Here's what I changed since it last worked correctly: ...
+Here's the relevant code and terminal output: ..."</pre></div>
+         <p>The act of writing this prompt carefully often surfaces the answer before the agent responds. When it does not, the agent has exactly the information it needs to generate useful hypotheses instead of generic suggestions.</p>
+       </section>
+
+       <div class="section-anchor" id="s8"></div>
+       <section class="section">
+         <div class="sec-header">
+           <span class="sec-num">08</span>
+           <div class="sec-title-block">
+             <h2>Real Example: Debugging ROS 2 Hardware Integration with Claude Code</h2>
+             <div class="sec-subtitle">A realistic robotics debugging workflow using AI to narrow the hypothesis space</div>
+           </div>
+         </div>
+         <p>The best way to understand how to use an AI coding agent for robotics debugging is to see it applied to a real problem. This section walks through representative issues from a UCSD ROS 2 project involving a Raspberry Pi 5, a VESC controller, an OAK-D Lite camera, a joystick, and Cartographer SLAM.</p>
+         <p><strong>The stack included:</strong></p>
+         <ul>
+           <li>Raspberry Pi 5 running Ubuntu 24.04</li>
+           <li>VESC motor controller connected over USB serial</li>
+           <li>OAK-D Lite depth camera</li>
+           <li>Joystick controller</li>
+           <li>ROS 2 Jazzy</li>
+           <li>Cartographer SLAM for mapping</li>
+           <li>DonkeyCar framework for vehicle control</li>
+         </ul>
+
+         <h3>Problem 1: Cartographer launch file error</h3>
+         <p>After ROS 2 was installed, the next step was setting up Cartographer. The launch file from a reference implementation failed with a parameter not present in the installed version. The error read:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">Cartographer error</span></div><pre>[cartographer_node-1] terminate called after throwing an instance of
+'std::invalid_argument'
+[cartographer_node-1] what(): /home/pi/ros2_ws/src/cartographer_config/config/racecar_2d.lua:32: unknown field 'use_landmarks'</pre></div>
+         <p>Claude Code was given the full traceback, the launch file, and the Lua configuration file. It identified that <code>use_landmarks</code> was a parameter introduced in a later version of Cartographer and then flagged two additional incompatible parameters. This prevented a second debugging session later on. The fix was a corrected Lua config file with the incompatible parameters removed and comments explaining the version-specific settings.</p>
+
+         <h3>Problem 2: VESC serial permission error</h3>
+         <p>After SLAM was working, the VESC script failed with:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">VESC permission error</span></div><pre>PermissionError: [Errno 13] Permission denied: '/dev/ttyACM0'</pre></div>
+         <p>When the team pasted the error, the relevant Python section, and the output of <code>ls -la /dev/ttyACM0</code>, Claude Code identified that the Pi user was not in the <code>dialout</code> group, which owns serial device files on Ubuntu. The fix was:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">VESC fix</span></div><pre>sudo usermod -aG dialout $USER
+# log out and reconnect</pre></div>
+         <p>This is a classic Linux permissions issue: the Python code was not necessarily wrong, but the user lacked access to the USB serial device.</p>
+
+         <h3>Problem 3: OAK-D Lite camera not detected after ROS 2 launch</h3>
+         <p>The OAK-D Lite camera worked in the standalone depthai Python library but failed when launched through the ROS 2 node. The error was vague:</p>
+         <div class="cb"><div class="cb-header"><span class="cb-label">OAK-D error</span></div><pre>[depthai_ros_driver-2] [ERROR] [1723478234.521]: Failed to find device after 30.0s timeout</pre></div>
+         <p>Claude Code suggested two ordered hypotheses:</p>
+         <ol>
+           <li>The ROS 2 node was being launched as a different user than the one with USB access permissions to the OAK-D device.</li>
+           <li>The depthai library version installed in the ROS 2 workspace did not match the version installed system-wide.</li>
+         </ol>
+         <p>It suggested checking both possibilities and verifying each one independently. In this case, the second hypothesis was correct: the system-wide depthai version was 2.24, while the ROS 2 workspace had sourced an older version. Pinning the workspace to the correct version resolved it.</p>
+
+         <div class="callout warn"><div class="callout-icon">⚠</div><div class="callout-body"><div class="callout-title">Patterns across all problems</div><div class="callout-text">The missing information was almost never just the last line of the error. In robotics debugging, the answer often depends on a configuration file, a terminal output snippet, or a permission check several layers upstream. AI agents are most useful when they are asked to identify hypotheses and verification steps, not just guess fixes.</div></div></div>
+       </section>
+
+       <div class="divider"></div>
+       <p style="text-align:center; font-size:13px; color: var(--text-dim);">UCSD Jacobs School of Engineering — ECE/MAE 148 Intro to Autonomous Vehicles</p>
+     </div>
+    </div>
+  </main>
+</body>
+</html>
