@@ -395,7 +395,7 @@ figcaption { padding: 10px 16px; font-family: var(--font-mono); font-size: 11px;
   <div class="hero-chips">
     <div class="hero-chip"><span class="hero-chip-icon">🍓</span>Raspberry Pi 5</div>
     <div class="hero-chip"><span class="hero-chip-icon">🐳</span>Docker</div>
-    <div class="hero-chip"><span class="hero-chip-icon">🤖</span>ROS2 Foxy</div>
+    <div class="hero-chip"><span class="hero-chip-icon">🤖</span>ROS2 Jazzy</div>
   </div>
 </div>
 
@@ -498,7 +498,7 @@ figcaption { padding: 10px 16px; font-family: var(--font-mono); font-size: 11px;
   </div>
   <p>The Robocar Docker image contains a fully configured environment including ROS2, OAK-D depth camera drivers (DepthAI), VESC motor controller drivers, all lane detection packages, and every required Python dependency. You pull it once and it persists on the Pi's storage.</p>
   <div class="callout warn"><div class="callout-icon">⚠</div><div class="callout-body"><div class="callout-title">Network Warning — Use Home Wi-Fi or Wired Ethernet</div><div class="callout-text">This image is approximately 14.7 GB. The campus Wi-Fi network frequently drops connections mid-download, corrupting the image and forcing a full re-pull. Use a home network or a wired Ethernet connection. If the download is interrupted, simply re-run the pull command — Docker automatically resumes from the last successfully downloaded layer.</div></div></div>
-  <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal — expect 20–40 minutes on a fast connection</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">docker pull</span> docker pull ghcr.io/ucsd-silberman-classes-and-projects/ucsd_robocar:stable </pre></div>
+  <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal — expect 20–40 minutes on a fast connection</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">docker pull</span> ghcr.io/ucsd-silberman-classes-and-projects/ucsd_robocar:stable</pre></div>
   <h3>Verify the Download Succeeded</h3>
   <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">docker images</span> | grep ucsd_robocar
 <span class="c"># Expected output:</span>
@@ -509,7 +509,7 @@ figcaption { padding: 10px 16px; font-family: var(--font-mono); font-size: 11px;
     <tbody>
       <tr><td>Download hangs or freezes</td><td>Re-run <code>docker pull</code> — it resumes automatically from the last completed layer</td></tr>
       <tr><td>"No space left on device"</td><td>Run <code>docker system prune -f</code> to remove old images and stopped containers</td></tr>
-      <tr><td>Image shows a size of 0B</td><td>The pull failed silently. Delete with <code>docker rmi ghcr.io/ucsd-ecemae-148/ucsd_robocar:stable</code> and re-pull</td></tr>
+      <tr><td>Image shows a size of 0B</td><td>The pull failed silently. Delete with <code>docker rmi ghcr.io/ucsd-silberman-classes-and-projects/ucsd_robocar:stable</code> and re-pull</td></tr>
       <tr><td>Authentication error</td><td>The image is public. Verify your internet connection: <code>ping 8.8.8.8</code></td></tr>
     </tbody>
   </table></div>
@@ -710,12 +710,21 @@ setup(
     entry_points={<span class="s">'console_scripts'</span>: []},
 )
 <span class="s">EOF</span></pre></div>
-  <h3>Step 3 — Build the Workspace</h3>
+  <h3>Step 3 — Downgrade setuptools (One-Time Fix)</h3>
+  <p>The image ships with a pip-installed setuptools 80+ in <code>/usr/local/lib/python3.12/dist-packages</code>. That version breaks <code>--symlink-install</code> for every <code>ament_python</code> package, and the build fails with <code>error: option --editable not recognized</code>. Install an older setuptools once per container before you build:</p>
+  <div class="cb"><div class="cb-header"><span class="cb-label">Inside Docker — run once</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">pip3 install</span> <span class="f">--break-system-packages</span> <span class="s">"setuptools&lt;80"</span></pre></div>
+  <div class="callout info"><div class="callout-icon">ℹ</div><div class="callout-body"><div class="callout-title">Why --break-system-packages?</div><div class="callout-text">Ubuntu 24.04 blocks system-wide <code>pip</code> installs unless you pass this flag. The command fails without it.</div></div></div>
+  <h3>Step 4 — Build the Workspace</h3>
   <div class="cb"><div class="cb-header"><span class="cb-label">Inside Docker</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">cd</span> /home/projects/ros2_ws
 <span class="k">rm -rf</span> build install log
 <span class="k">colcon build</span> <span class="f">--symlink-install</span>
 <span class="k">source</span> install/setup.bash
 <span class="k">ros2 pkg list</span> | grep ucsd_robocar</pre></div>
+  <h3>Reading the Build Output</h3>
+  <ul>
+    <li><strong>One failure, many "Aborted":</strong> If a build fails, usually only one package actually failed. The others marked <code>Aborted</code> are packages colcon stopped after that failure. They are not separate errors. Scroll up to the one package marked <code>Failed</code> and fix that.</li>
+    <li><strong>Harmless warning:</strong> <code>UserWarning: Unknown distribution option: 'tests_require'</code> can be ignored. Packages that print it still finish, but colcon lists them as having "stderr output".</li>
+  </ul>
   <div class="callout warn"><div class="callout-icon">⚠</div><div class="callout-body"><div class="callout-title">Always Source After Every Build</div><div class="callout-text">Running <code>colcon build</code> compiles the code but does <strong>not</strong> make it available to ROS2. You must run <code>source install/setup.bash</code> every time after building. Section 7 creates aliases that handle this automatically.</div></div></div>
 </section>
 
@@ -730,18 +739,19 @@ setup(
     </div>
   </div>
   <p>These two aliases eliminate the most common source of student mistakes: forgetting to rebuild or re-source after changing a file.</p>
-  <div class="callout info"><div class="callout-icon">ℹ</div><div class="callout-body"><div class="callout-title">These Aliases Go Inside the Container</div><div class="callout-text">Add these to <code>/root/.bashrc</code> <strong>inside Docker</strong>, not the Pi host's <code>~/.bashrc</code>. If your ROS2 distribution is not Foxy, update the last line accordingly (e.g., replace <code>foxy</code> with <code>humble</code>).</div></div></div>
-  <div class="cb"><div class="cb-header"><span class="cb-label">Inside Docker — paste into ~/.bashrc</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="c"># ── Source workspace only (fast — no recompilation) ──────────────────────</span>
-alias source_ros2=<span class="s">'source /home/projects/ros2_ws/install/setup.bash &amp;&amp; echo "[ROS2] Workspace sourced ✓"'</span>
+  <div class="callout info"><div class="callout-icon">ℹ</div><div class="callout-body"><div class="callout-title">These Aliases Go Inside the Container</div><div class="callout-text">Add these to <code>/root/.bashrc</code> <strong>inside Docker</strong>, not the Pi host's <code>~/.bashrc</code>. They use <code>$ROS_DISTRO</code> (Jazzy in this image) instead of a hard-coded distribution name.</div></div></div>
+  <div class="callout warn"><div class="callout-icon">⚠</div><div class="callout-body"><div class="callout-title">Driver Workspaces Must Be Sourced First</div><div class="callout-text"><code>source_ros2</code> sources the driver workspaces before <code>ros2_ws</code>. These are <code>sensor2_ws</code> (OAK-D <code>multi_cam</code>, VESC, LiDAR, IMU) and <code>rosboard_ws</code>. If you only source <code>ros2_ws</code>, <code>all_nodes.launch.py</code> fails with <code>package 'multi_cam' not found</code>.</div></div></div>
+  <div class="cb"><div class="cb-header"><span class="cb-label">Inside Docker — paste into ~/.bashrc</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="c"># ── Source the global ROS2 base installation ──────────────────────────────</span>
+source /opt/ros/$ROS_DISTRO/setup.bash
+
+<span class="c"># ── Source ROS2 base, driver workspaces, then ros2_ws (fast — no recompilation) ──</span>
+alias source_ros2=<span class="s">'source /opt/ros/$ROS_DISTRO/setup.bash &amp;&amp; for f in $(find /home/projects -name setup.bash -path "*install*" -not -path "*/ros2_ws/*"); do source "$f"; done &amp;&amp; source /home/projects/ros2_ws/install/setup.bash &amp;&amp; echo "[ROS2] Sourced ✓"'</span>
 
 <span class="c"># ── Full build then source (use after ANY file change) ───────────────────</span>
-alias build_ros2=<span class="s">'cd /home/projects/ros2_ws &amp;&amp; colcon build --symlink-install &amp;&amp; source install/setup.bash &amp;&amp; echo "[ROS2] Build complete ✓"'</span>
-
-<span class="c"># ── Source the global ROS2 base installation ──────────────────────────────</span>
-source /opt/ros/foxy/setup.bash 2&gt;/dev/null</pre></div>
+alias build_ros2=<span class="s">'cd /home/projects/ros2_ws &amp;&amp; colcon build --symlink-install &amp;&amp; source_ros2'</span></pre></div>
   <div class="cb"><div class="cb-header"><span class="cb-label">Activate and test</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">source</span> ~/.bashrc
-<span class="k">source_ros2</span>    <span class="c"># Should print: [ROS2] Workspace sourced ✓</span>
-<span class="k">build_ros2</span>     <span class="c"># Should print: [ROS2] Build complete ✓</span></pre></div>
+<span class="k">source_ros2</span>    <span class="c"># Should print: [ROS2] Sourced ✓</span>
+<span class="k">build_ros2</span>     <span class="c"># Builds, then prints: [ROS2] Sourced ✓</span></pre></div>
   <div class="tw"><table>
     <thead><tr><th>Alias</th><th>When to Use</th><th>Speed</th></tr></thead>
     <tbody>
@@ -923,7 +933,7 @@ source /opt/ros/foxy/setup.bash 2&gt;/dev/null</pre></div>
   <h3>Build the Workspace</h3>
   <p>After saving both config files, you <strong>must</strong> rebuild before the changes take effect:</p>
   <div class="cb"><div class="cb-header"><span class="cb-label">Inside Docker</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">build_ros2</span>
-<span class="c"># Wait for "Build complete ✓" — this takes 30–120 seconds</span></pre></div>
+<span class="c"># Wait for "[ROS2] Sourced ✓" — this takes 30–120 seconds</span></pre></div>
 
   <h3>Place the Car on the Track and Launch</h3>
   <div class="track-banner">
@@ -1145,7 +1155,7 @@ source /opt/ros/foxy/setup.bash 2&gt;/dev/null</pre></div>
 <span class="v">camera_nav</span>:              1   <span class="c"># ✅ ENABLE — activates autonomous lane following</span></pre></div>
 
   <div class="cb"><div class="cb-header"><span class="cb-label">Inside Docker — build after changing node_config.yaml</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">build_ros2</span>
-<span class="c"># Wait for "Build complete ✓"</span></pre></div>
+<span class="c"># Wait for "[ROS2] Sourced ✓"</span></pre></div>
 
   <h3>Phase 2, Part B — Actuator Calibration (Steering & Throttle Limits)</h3>
   <p>Before tuning PID, set physical limits for your steering servo and throttle. These are saved in <code>ros_racer_calibration.yaml</code> and are set using the actuator GUI sliders during a short calibration launch.</p>
