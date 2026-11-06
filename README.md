@@ -14,6 +14,7 @@
 3. [Page-by-Page Breakdown](#3-page-by-page-breakdown)
    - [rpi_setup.html — Raspberry Pi Setup](#rpi_setuphtml--raspberry-pi-setup)
    - [vesc_setup.html — VESC Motor Controller Setup](#vesc_setuphtml--vesc-motor-controller-setup)
+   - [radiomaster_setup.html — RadioMaster Pocket RC Setup](#radiomaster_setuphtml--radiomaster-pocket-rc-setup)
    - [donkeycar.html — DonkeyCar Framework](#donkeycarhtml--donkeycar-framework)
    - [gps_laps.html — GPS Lap Recording](#gps_lapshtml--gps-lap-recording)
    - [index.html — ROS2 Setup & Calibration Guide](#indexhtml--ros2-setup--calibration-guide)
@@ -61,8 +62,12 @@ ECEMAE148_RPI_Documentation.github.io/
 ├── genai_setup.html    ← GenAI / Copilot workflow guide for ROS2 debugging and development
 ├── rpi_setup.html      ← Raspberry Pi OS flashing and configuration
 ├── vesc_setup.html     ← VESC motor controller firmware and calibration
+├── radiomaster_setup.html ← RadioMaster Pocket RC link: Pro Micro bridge, ELRS receiver, DonkeyCar controller
 ├── donkeycar.html      ← DonkeyCar framework install, patching, training
 ├── gps_laps.html       ← GPS RTK corrections, path recording, PID tuning
+│
+├── Radio/
+│   └── pocket-bridge/  ← downloads for radiomaster_setup.html: firmware, flash script, DonkeyCar controller, firmware source
 │
 └── README.md           ← This file
 ```
@@ -127,6 +132,32 @@ All six HTML files are flat at the root level of the repository. There are no su
 | 12 | Hall Sensor Detection | Running hall sensor detection for accurate low-speed position feedback |
 | 13 | Enable Servo Steering Output | Enabling PPM output on the VESC for servo/steering control |
 | 14 | Troubleshooting & Known Issues | Common VESC errors, fault codes, and recovery steps |
+
+---
+
+### `radiomaster_setup.html` — RadioMaster Pocket RC Setup
+
+**Tab label in the top navigation:** `Radio Setup`  
+**Breadcrumb shown in the top bar:** `RadioMaster Pocket RC Setup`  
+**Audience:** Students fitting the course RC link to a Raspberry Pi 5 DonkeyCar: an ExpressLRS receiver and an Arduino Pro Micro that present the RadioMaster Pocket to the Pi as a USB joystick, plus the kill-switch relay into the VESC. Written while bringing up the lab spare car; every troubleshooting row is something that actually happened.
+
+**What this page covers (in order):**
+
+| Section # | Title | Description |
+|-----------|-------|-------------|
+| 01 | How the RC Link Works | Pocket → ELRS receiver → Pro Micro (CRSF at 115200) → USB joystick on the Pi; what each part does, and the parts list |
+| 02 | Wire the Receiver to the Pro Micro | Three wires between receiver and Pro Micro, receiver power from the BEC, USB to the Pi |
+| 03 | Flash the Pro Micro | Writing the prebuilt bridge firmware from the Pi with avrdude; nothing to install on the laptop. Files in `Radio/pocket-bridge/` |
+| 04 | Verify the Bridge on the Pi | `jstest` on the joystick, and the firmware's status line that every later check uses |
+| 05 | Kill-Switch Relay | A hardware stop independent of the Pi, wired so that losing the Pro Micro stops the car (not yet verified on a car) |
+| 06 | Before You Flash the Pocket | Confirming the ELRS variant, charged cells, the ExpressLRS Configurator, the table of class settings |
+| 07 | Flash the Pocket | ExpressLRS 3.3.2 on the radio's internal module over USB, then the packet rate |
+| 08 | Flash & Configure the Receiver | 3.3.2 over Wi-Fi, then the two settings the bridge depends on: Serial Protocol CRSF, UART baud 115200 |
+| 09 | Set Up the Pocket Model | Stick calibration, switch hardware types, and the mixes that put each switch on a channel |
+| 10 | Connect It to DonkeyCar | The custom controller (`CONTROLLER_TYPE = "custom"`), its arming interlock, a bench probe, then the first drive with the wheels up |
+| 11 | Troubleshooting | Symptom / cause / fix table: dark USB-C boards, the macOS USB prompt, axes stuck at −32767 (receiver on SBUS or 420000 baud), the locked baud field, jitter, switches set to NONE, arming refusals |
+
+> **Note for future TAs:** The Pro Micro firmware in `Radio/pocket-bridge/` is `NikitaB04/ELRSController` plus a patch (CRC-checked CRSF reader, link-loss failsafe, button fix, and the relay driven to *allow* running rather than to *kill*). The relay polarity is a deliberate deviation from the original design and Section 05 gives the wiring that goes with it. The page's three photos are still to be taken; their `<figure>` blocks are in the file as HTML comments, ready to uncomment.
 
 ---
 
@@ -233,19 +264,20 @@ All six HTML files are flat at the root level of the repository. There are no su
 
 ## 4. Recommended Reading Order for Students
 
-Students should work through the six guides in this order:
+Students should work through the seven guides in this order:
 
 ```
-1. rpi_setup.html     → Flash and configure the Raspberry Pi OS
-2. vesc_setup.html    → Flash VESC firmware and calibrate the motor
-3. donkeycar.html     → Install DonkeyCar, patch, collect data, train, and drive autonomously
+1. rpi_setup.html          → Flash and configure the Raspberry Pi OS
+2. vesc_setup.html         → Flash VESC firmware and calibrate the motor
+3. radiomaster_setup.html  → Wire and flash the RC bridge; set up the RadioMaster Pocket and its receiver
+4. donkeycar.html          → Install DonkeyCar, patch, collect data, train, and drive autonomously
        — OR —
-3. index.html         → Set up ROS2 Docker, calibrate lane detection, develop ROS2 nodes
-4. gps_laps.html      → (Advanced / optional) GPS RTK path recording and playback
-5. genai_setup.html   → Use AI effectively for debugging, prompting, and validation workflows
+4. index.html              → Set up ROS2 Docker, calibrate lane detection, develop ROS2 nodes
+5. gps_laps.html           → (Advanced / optional) GPS RTK path recording and playback
+6. genai_setup.html        → Use AI effectively for debugging, prompting, and validation workflows
 ```
 
-DonkeyCar (`donkeycar.html`) and ROS2 (`index.html`) are parallel tracks — different project teams will use one or the other depending on their assigned project direction. The GPS Laps page (`gps_laps.html`) builds on top of the DonkeyCar framework and is used by teams specifically working on GPS-guided navigation. The GenAI page (`genai_setup.html`) is positioned after ROS Setup in the navigation order and is intended to support debugging and iteration without replacing the hardware and robot validation loop.
+DonkeyCar (`donkeycar.html`) and ROS2 (`index.html`) are parallel tracks — different project teams will use one or the other depending on their assigned project direction. The GPS Laps page (`gps_laps.html`) builds on top of the DonkeyCar framework and is used by teams specifically working on GPS-guided navigation. The GenAI page (`genai_setup.html`) is positioned after ROS Setup in the navigation order and is intended to support debugging and iteration without replacing the hardware and robot validation loop. The Radio Setup page (`radiomaster_setup.html`) covers the RC link that both tracks drive with; it comes after the VESC, which its kill-switch relay plugs into, and before DonkeyCar, whose controller section depends on it.
 
 ---
 
