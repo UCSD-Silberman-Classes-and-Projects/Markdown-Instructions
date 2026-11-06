@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECE/MAE 148 — RadioMaster Pocket RC Setup</title>
+<meta name="description" content="RadioMaster Pocket RC setup for ECE/MAE 148 — the Arduino Pro Micro bridge (wiring, firmware, checks, kill relay) and the Pocket itself (ExpressLRS 3.3.2, receiver CRSF settings, model setup, DonkeyCar controller).">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ucsd-navy:    #002E6D;
+  --ucsd-blue:    #00629B;
+  --ucsd-gold:    #C69214;
+  --ucsd-gold-lt: #E8B931;
+  --bg:           #09111E;
+  --bg2:          #0D1A2D;
+  --surface:      #111F35;
+  --surface2:     #162643;
+  --surface3:     #1C2F50;
+  --border:       #1E3355;
+  --border-lt:    #2A4670;
+  --text:         #DCE8F5;
+  --text-muted:   #7A9EC4;
+  --text-dim:     #4D6E96;
+  --accent:       #00A8E8;
+  --accent-glow:  rgba(0,168,232,0.15);
+  --gold-glow:    rgba(198,146,20,0.18);
+  --green:        #00C896;
+  --yellow:       #F0B429;
+  --red:          #F04E37;
+  --purple:       #9B7FE8;
+  --code-bg:      #060E1A;
+  --code-border:  #1A2E4A;
+  --sidebar-w:    290px;
+  --topbar-h:     60px;
+  --r:            6px;
+  --font-body:    'Sora', sans-serif;
+  --font-mono:    'IBM Plex Mono', monospace;
+  --ease:         cubic-bezier(0.4,0,0.2,1);
+}
+
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; scroll-padding-top: calc(var(--topbar-h) + 20px); }
+body { font-family: var(--font-body); background: var(--bg); color: var(--text); line-height: 1.7; min-height: 100vh; overflow-x: hidden; }
+
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0,98,155,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,98,155,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: var(--topbar-h);
+  background: rgba(9,17,30,0.95);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  display: flex; align-items: center;
+  padding: 0 0 0 var(--sidebar-w);
+}
+.topbar-inner { display: flex; align-items: center; gap: 16px; padding: 0 32px; width: 100%; }
+.topbar-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; flex-shrink: 0; }
+.topbar-emblem {
+  width: 36px; height: 36px; background: var(--ucsd-navy);
+  border: 2px solid var(--ucsd-gold); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.topbar-emblem svg { width: 20px; height: 20px; }
+.topbar-name { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+.topbar-course { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+.topbar-divider { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+.topbar-breadcrumb { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.topbar-spacer { flex: 1; }
+
+.page-switcher {
+  display: flex; align-items: center; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border-lt);
+  border-radius: 20px; padding: 3px; flex-shrink: 0;
+}
+.ps-link {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  padding: 4px 14px; border-radius: 16px; letter-spacing: 0.4px;
+  text-decoration: none; color: var(--text-muted);
+  transition: all 0.15s var(--ease);
+}
+.ps-link:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.ps-link.active { background: var(--ucsd-gold); color: var(--bg); }
+@media (max-width: 768px) { .page-switcher { display: none; } }
+#menu-toggle {
+  display: none; background: none; border: 1px solid var(--border);
+  color: var(--text-muted); padding: 6px 10px; border-radius: var(--r);
+  cursor: pointer; font-size: 16px; flex-shrink: 0;
+}
+
+.sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 150;
+  width: var(--sidebar-w); background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  background: var(--ucsd-navy); flex-shrink: 0;
+}
+.sidebar-logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.sidebar-logo {
+  width: 32px; height: 32px; border-radius: 6px;
+  background: rgba(198,146,20,0.2); border: 1.5px solid var(--ucsd-gold);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--ucsd-gold);
+}
+.sidebar-title { font-size: 13px; font-weight: 700; color: #fff; }
+.sidebar-sub { font-size: 10px; color: rgba(255,255,255,0.5); font-family: var(--font-mono); margin-top: 2px; }
+.sidebar-search { margin: 12px 16px; position: relative; flex-shrink: 0; }
+.sidebar-search input {
+  width: 100%; padding: 8px 12px 8px 32px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); color: var(--text); font-family: var(--font-body);
+  font-size: 12px; outline: none;
+}
+.sidebar-search input::placeholder { color: var(--text-dim); }
+.sidebar-search input:focus { border-color: var(--border-lt); }
+.sidebar-search-icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--text-dim); font-size: 13px; pointer-events: none;
+}
+.nav-scroll { overflow-y: auto; flex: 1; padding-bottom: 40px; }
+.nav-scroll::-webkit-scrollbar { width: 3px; }
+.nav-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.nav-group-label {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.8px;
+  color: var(--text-dim); padding: 16px 20px 6px;
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-group-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.nav-link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 20px; text-decoration: none; color: var(--text-muted); font-size: 12.5px;
+  border-left: 2px solid transparent; transition: all 0.15s var(--ease);
+}
+.nav-link .nl-num {
+  font-family: var(--font-mono); font-size: 9px; color: var(--text-dim);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+}
+.nav-link:hover { color: var(--text); background: rgba(255,255,255,0.03); border-left-color: var(--border-lt); }
+.nav-link.active { color: var(--ucsd-gold-lt); border-left-color: var(--ucsd-gold); background: var(--gold-glow); }
+.nav-link.active .nl-num { background: rgba(198,146,20,0.2); border-color: rgba(198,146,20,0.3); color: var(--ucsd-gold); }
+.nav-progress { padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.np-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); margin-bottom: 6px; display: flex; justify-content: space-between; }
+.np-bar { height: 3px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.np-fill { height: 100%; background: linear-gradient(90deg, var(--ucsd-gold), var(--ucsd-gold-lt)); border-radius: 3px; width: 0%; transition: width 0.4s var(--ease); }
+
+.layout { display: flex; padding-top: var(--topbar-h); min-height: 100vh; }
+.main { margin-left: var(--sidebar-w); flex: 1; min-width: 0; position: relative; z-index: 1; }
+
+.hero {
+  background:
+    radial-gradient(ellipse 80% 100% at 100% 50%, rgba(0,98,155,0.25), transparent),
+    radial-gradient(ellipse 50% 80% at 0% 0%, rgba(198,146,20,0.08), transparent),
+    linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 72px 80px 60px; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 400px; height: 400px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,168,232,0.07), transparent 70%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--ucsd-gold); letter-spacing: 1px;
+  background: var(--gold-glow); border: 1px solid rgba(198,146,20,0.3);
+  padding: 5px 14px; border-radius: 20px;
+}
+.hero-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ucsd-gold); }
+.hero h1 { font-size: clamp(32px, 4.5vw, 56px); font-weight: 800; line-height: 1.08; letter-spacing: -1.5px; margin-bottom: 20px; color: var(--text); }
+.hero h1 span { color: var(--ucsd-gold); }
+.hero-desc { font-size: 16px; color: var(--text-muted); max-width: 640px; line-height: 1.65; margin-bottom: 36px; }
+.hero-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--surface); border: 1px solid var(--border-lt);
+  color: var(--text-muted); font-size: 12px; font-family: var(--font-mono);
+  padding: 6px 14px; border-radius: 20px;
+}
+.hero-chip-icon { font-size: 14px; }
+
+.content { padding: 0 80px 80px; }
+
+.section { padding-top: 64px; }
+.section-anchor {
+  display: block;
+  visibility: hidden;
+  height: 0;
+  margin-top: calc(-1 * (var(--topbar-h) + 24px));
+  padding-top: calc(var(--topbar-h) + 24px);
+}
+.sec-header {
+  display: flex; align-items: flex-start; gap: 20px;
+  margin-bottom: 28px; padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sec-num {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--ucsd-gold); background: var(--gold-glow);
+  border: 1px solid rgba(198,146,20,0.3);
+  padding: 4px 12px; border-radius: 20px; flex-shrink: 0; margin-top: 4px;
+}
+.sec-title-block { flex: 1; }
+.sec-title-block h2 { font-size: 24px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; line-height: 1.2; }
+.sec-title-block .sec-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.sec-badges { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; align-items: center; }
+
+h3 { font-size: 15px; font-weight: 600; color: var(--accent); margin: 28px 0 10px; letter-spacing: -0.2px; }
+h4 { font-size: 13px; font-weight: 600; color: var(--text-muted); margin: 18px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+p { color: var(--text-muted); margin-bottom: 14px; font-size: 14px; line-height: 1.75; }
+p strong { color: var(--text); font-weight: 600; }
+p code, li code {
+  font-family: var(--font-mono); font-size: 12px;
+  background: rgba(0,168,232,0.1); color: var(--accent);
+  padding: 1px 5px; border-radius: 3px;
+}
+
+.badge { font-family: var(--font-mono); font-size: 9px; font-weight: 700; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.8px; text-transform: uppercase; }
+.badge-new    { background: rgba(155,127,232,0.2); color: var(--purple); border: 1px solid rgba(155,127,232,0.3); }
+.badge-fix    { background: rgba(0,200,150,0.15); color: var(--green); border: 1px solid rgba(0,200,150,0.3); }
+.badge-warn   { background: rgba(240,78,55,0.15); color: var(--red); border: 1px solid rgba(240,78,55,0.3); }
+.badge-critical { background: rgba(240,78,55,0.2); color: #ff7b6e; border: 1px solid rgba(240,78,55,0.4); }
+
+.callout { display: flex; gap: 14px; padding: 16px 18px; border-radius: var(--r); margin: 16px 0; border: 1px solid; font-size: 13.5px; }
+.callout-icon { font-size: 16px; flex-shrink: 0; line-height: 1.4; }
+.callout-body { flex: 1; min-width: 0; }
+.callout-title { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 5px; }
+.callout-text { color: var(--text-muted); line-height: 1.65; }
+.callout-text code { font-family: var(--font-mono); font-size: 11.5px; background: rgba(255,255,255,0.07); color: var(--text); padding: 1px 5px; border-radius: 3px; }
+.callout.info  { background: rgba(0,168,232,0.07); border-color: rgba(0,168,232,0.25); }
+.callout.info  .callout-title { color: var(--accent); }
+.callout.warn  { background: rgba(240,180,41,0.07); border-color: rgba(240,180,41,0.28); }
+.callout.warn  .callout-title { color: var(--yellow); }
+.callout.tip   { background: rgba(0,200,150,0.07); border-color: rgba(0,200,150,0.25); }
+.callout.tip   .callout-title { color: var(--green); }
+.callout.error { background: rgba(240,78,55,0.07); border-color: rgba(240,78,55,0.28); }
+.callout.error .callout-title { color: var(--red); }
+.callout.new   { background: rgba(155,127,232,0.07); border-color: rgba(155,127,232,0.28); }
+.callout.new   .callout-title { color: var(--purple); }
+
+.cb { background: var(--code-bg); border: 1px solid var(--code-border); border-radius: var(--r); margin: 12px 0; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.cb-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; background: var(--surface); border-bottom: 1px solid var(--code-border); }
+.cb-label { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
+.cb-label::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ucsd-gold); opacity: 0.7; }
+.copy-btn { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; background: var(--surface2); border: 1px solid var(--border-lt); color: var(--text-dim); padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.15s var(--ease); letter-spacing: 0.5px; }
+.copy-btn:hover { background: var(--border); color: var(--text); }
+.copy-btn.ok { color: var(--green); border-color: rgba(0,200,150,0.4); }
+pre { padding: 18px 20px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; tab-size: 2; color: #C9D8EC; }
+pre::-webkit-scrollbar { height: 3px; }
+pre::-webkit-scrollbar-thumb { background: var(--border); }
+.k  { color: #6BBFFF; }
+.s  { color: #A8D8B9; }
+.c  { color: #4D6E96; font-style: italic; }
+.f  { color: #BFA0F4; }
+.v  { color: #F0B429; }
+.ok { color: #00C896; }
+.er { color: #F04E37; }
+
+.steps { display: flex; flex-direction: column; gap: 14px; margin: 16px 0; }
+.step { display: flex; gap: 18px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); transition: border-color 0.15s var(--ease); }
+.step:hover { border-color: var(--border-lt); }
+.step-num { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: var(--gold-glow); border: 1.5px solid rgba(198,146,20,0.45); color: var(--ucsd-gold); font-family: var(--font-mono); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.step-body { flex: 1; min-width: 0; }
+.step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.step-desc { font-size: 13px; color: var(--text-muted); line-height: 1.65; margin-bottom: 8px; }
+.step-desc:last-child { margin-bottom: 0; }
+
+.tw { overflow-x: auto; margin: 14px 0; border-radius: var(--r); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead tr { background: var(--surface2); }
+th { text-align: left; padding: 11px 16px; font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--text-muted); vertical-align: top; font-size: 13px; line-height: 1.6; }
+td code { font-family: var(--font-mono); font-size: 11.5px; color: var(--accent); background: rgba(0,168,232,0.08); padding: 1px 6px; border-radius: 3px; }
+td strong { color: var(--text); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,0.015); }
+
+figure { margin: 20px 0; border-radius: var(--r); overflow: hidden; border: 1px solid var(--border); background: var(--surface); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+.fig-wrap { background: var(--surface2); display: flex; align-items: center; justify-content: center; padding: 16px; min-height: 100px; }
+.fig-wrap img { max-width: 100%; height: auto; display: block; border-radius: 4px; }
+figcaption { padding: 10px 16px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fig-label { color: var(--ucsd-gold); font-weight: 600; }
+
+.divider { height: 1px; background: var(--border); margin: 48px 0; }
+
+#btt { position: fixed; bottom: 28px; right: 28px; z-index: 190; width: 42px; height: 42px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border-lt); color: var(--text-muted); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: all 0.2s var(--ease); pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+#btt.show { opacity: 1; pointer-events: auto; }
+#btt:hover { background: var(--ucsd-gold); color: var(--bg); border-color: var(--ucsd-gold); transform: translateY(-2px); }
+
+#read-progress { position: fixed; top: 0; left: var(--sidebar-w); right: 0; height: 2px; z-index: 300; background: transparent; }
+#read-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--ucsd-navy), var(--ucsd-gold)); transition: width 0.1s linear; }
+
+@media (max-width: 1024px) { .hero { padding: 48px 40px 40px; } .content { padding: 0 40px 60px; } }
+@media (max-width: 768px) {
+  #menu-toggle { display: flex; }
+  .sidebar { transform: translateX(-100%); transition: transform 0.25s var(--ease); top: var(--topbar-h); }
+  .sidebar.open { transform: translateX(0); }
+  .topbar { padding-left: 0; }
+  .main { margin-left: 0; }
+  .hero { padding: 32px 20px 28px; }
+  .content { padding: 0 20px 48px; }
+  #read-progress { left: 0; }
+}
+</style>
+</head>
+<body>
+
+<div id="read-progress"><div id="read-progress-fill"></div></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="#hero" class="topbar-brand">
+      <div class="topbar-emblem">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="5" stroke="#C69214" stroke-width="2"/>
+          <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="#C69214" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="2" fill="#C69214"/>
+        </svg>
+      </div>
+      <div>
+        <div class="topbar-name">UCSD Robocar</div>
+        <div class="topbar-course">ECE / MAE 148</div>
+      </div>
+    </a>
+    <div class="topbar-divider"></div>
+    <span class="topbar-breadcrumb">RadioMaster Pocket RC Setup</span>
+    <div class="topbar-spacer"></div>
+    <div class="page-switcher">
+      <a href="./donkeysim.html" class="ps-link">DonkeySim</a>
+      <a href="./rpi_setup.html" class="ps-link">RPI Setup</a>
+      <a href="./vesc_setup.html" class="ps-link">VESC Setup</a>
+      <a href="./radiomaster_setup.html" class="ps-link active">Radio Setup</a>
+      <a href="./donkeycar.html" class="ps-link">DonkeyCar</a>
+      <a href="./gps_laps.html" class="ps-link">GPS Laps</a>
+      <a href="./index.html" class="ps-link">ROS Setup</a>
+      <a href="./genai_setup.html" class="ps-link">GenAI Setup</a>
+    </div>
+    <button id="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+  </div>
+</header>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo-row">
+      <div class="sidebar-logo">RC</div>
+      <div>
+        <div class="sidebar-title">Robocar Docs</div>
+        <div class="sidebar-sub">ECE/MAE 148 · UCSD</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-search">
+    <span class="sidebar-search-icon">⌕</span>
+    <input type="text" placeholder="Search sections…" id="nav-search" oninput="filterNav(this.value)">
+  </div>
+
+  <div class="nav-scroll" id="nav-scroll">
+    <div class="nav-group-label">Arduino Bridge</div>
+    <a class="nav-link" href="#s1"><span class="nl-num">01</span>How the RC Link Works</a>
+    <a class="nav-link" href="#s2"><span class="nl-num">02</span>Wire the Receiver</a>
+    <a class="nav-link" href="#s3"><span class="nl-num">03</span>Flash the Pro Micro</a>
+    <a class="nav-link" href="#s4"><span class="nl-num">04</span>Verify the Bridge</a>
+    <a class="nav-link" href="#s5"><span class="nl-num">05</span>Kill-Switch Relay</a>
+
+    <div class="nav-group-label">RadioMaster Pocket</div>
+    <a class="nav-link" href="#s6"><span class="nl-num">06</span>Before You Flash</a>
+    <a class="nav-link" href="#s7"><span class="nl-num">07</span>Flash the Pocket</a>
+    <a class="nav-link" href="#s8"><span class="nl-num">08</span>Flash &amp; Configure the Receiver</a>
+    <a class="nav-link" href="#s9"><span class="nl-num">09</span>Set Up the Pocket Model</a>
+    <a class="nav-link" href="#s10"><span class="nl-num">10</span>Connect It to DonkeyCar</a>
+    <a class="nav-link" href="#s11"><span class="nl-num">11</span>Troubleshooting</a>
+  </div>
+
+  <div class="nav-progress">
+    <div class="np-label"><span>Reading Progress</span><span id="np-pct">0%</span></div>
+    <div class="np-bar"><div class="np-fill" id="np-fill"></div></div>
+  </div>
+</nav>
+
+<main class="layout">
+<div class="main">
+
+<div class="hero" id="hero">
+  <div class="hero-eyebrow"><div class="hero-eyebrow-dot"></div>UCSD Jacobs School of Engineering</div>
+  <h1>RadioMaster Pocket<br><span>RC Setup Guide</span></h1>
+  <p class="hero-desc">Drive your DonkeyCar from a RadioMaster Pocket instead of a game controller. This guide covers the Arduino Pro Micro bridge that turns the radio link into a USB joystick (wiring, firmware, checks), then the Pocket itself: ExpressLRS 3.3.2 on the radio and receiver, the receiver's CRSF settings, the Pocket's model, and the DonkeyCar controller with its arming interlock.</p>
+  <div class="hero-chips">
+    <div class="hero-chip"><span class="hero-chip-icon">📻</span>RadioMaster Pocket (ELRS)</div>
+    <div class="hero-chip"><span class="hero-chip-icon">📡</span>RP4-TD or RP3 receiver</div>
+    <div class="hero-chip"><span class="hero-chip-icon">🔌</span>Arduino Pro Micro</div>
+    <div class="hero-chip"><span class="hero-chip-icon">🚗</span>DonkeyCar 5.x</div>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- §1 — How the RC Link Works -->
+<div class="section-anchor" id="s1"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">01</span>
+    <div class="sec-title-block">
+      <h2>How the RC Link Works</h2>
+      <div class="sec-subtitle">What each part does and what you need</div>
+    </div>
+  </div>
+
+  <p>DonkeyCar reads a <strong>joystick</strong>. An ExpressLRS receiver outputs a <strong>serial protocol called CRSF</strong>. The Arduino Pro Micro sits between them: it reads CRSF from the receiver on one pin and presents itself to the Raspberry Pi as a USB joystick with six axes and three buttons. DonkeyCar then treats the Pocket like any other game controller.</p>
+
+  <figure>
+    <div class="fig-wrap">
+      <svg viewBox="0 0 760 290" width="100%" style="max-width:760px; font-family: var(--font-mono); font-size: 12px;" role="img" aria-label="Signal path: Pocket to receiver by radio, receiver to Pro Micro by CRSF serial, Pro Micro to Raspberry Pi by USB. A 5 V BEC powers the receiver. Pin 8 of the Pro Micro drives an optional relay into the VESC kill switch.">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:#00A8E8"/></marker>
+        </defs>
+        <g style="fill:#162643; stroke:#2A4670; stroke-width:1.5">
+          <rect x="12" y="60" width="140" height="70" rx="6"/>
+          <rect x="222" y="60" width="150" height="70" rx="6"/>
+          <rect x="440" y="60" width="130" height="70" rx="6"/>
+          <rect x="628" y="60" width="120" height="70" rx="6"/>
+          <rect x="222" y="200" width="150" height="56" rx="6"/>
+          <rect x="440" y="200" width="130" height="56" rx="6" style="stroke-dasharray:5 4"/>
+          <rect x="628" y="200" width="120" height="56" rx="6" style="stroke-dasharray:5 4"/>
+        </g>
+        <g style="fill:#DCE8F5; text-anchor:middle; font-weight:600">
+          <text x="82" y="90">RadioMaster</text><text x="82" y="108">Pocket</text>
+          <text x="297" y="90">ELRS receiver</text><text x="297" y="108" style="font-weight:400; fill:#7A9EC4">RP4-TD / RP3</text>
+          <text x="505" y="90">Pro Micro</text><text x="505" y="108" style="font-weight:400; fill:#7A9EC4">ATmega32U4</text>
+          <text x="688" y="90">Raspberry Pi</text><text x="688" y="108" style="font-weight:400; fill:#7A9EC4">DonkeyCar</text>
+          <text x="297" y="224">5 V BEC</text><text x="297" y="242" style="font-weight:400; fill:#7A9EC4">from the LiPo</text>
+          <text x="505" y="224">Relay</text><text x="505" y="242" style="font-weight:400; fill:#7A9EC4">optional</text>
+          <text x="688" y="224">VESC ADC2</text><text x="688" y="242" style="font-weight:400; fill:#7A9EC4">kill switch</text>
+        </g>
+        <g style="stroke:#00A8E8; stroke-width:2; fill:none; marker-end:url(#arr)">
+          <path d="M152 95 H222"/>
+          <path d="M372 95 H440"/>
+          <path d="M570 95 H628"/>
+          <path d="M297 200 V130"/>
+          <path d="M505 130 V200" style="stroke-dasharray:5 4"/>
+          <path d="M570 228 H628" style="stroke-dasharray:5 4"/>
+        </g>
+        <g style="fill:#7A9EC4; text-anchor:middle">
+          <text x="187" y="50">2.4 GHz ELRS</text>
+          <text x="406" y="40">CRSF 115200</text><text x="406" y="54">RX TX → pin 0</text>
+          <text x="599" y="50">USB joystick</text>
+          <text x="338" y="170">5 V + GND</text>
+          <text x="548" y="170">pin 8</text>
+          <text x="599" y="280">HIGH = run</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><span class="fig-label">Fig 1.1</span> The signal path. Solid lines are required. The relay path is the hardware kill switch, covered in Section 05.</figcaption>
+  </figure>
+
+  <h3>What You Need</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Part</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>RadioMaster Pocket, ELRS version</strong></td><td>Takes two <strong>18650</strong> cells.</td></tr>
+      <tr><td><strong>ExpressLRS 2.4 GHz receiver</strong></td><td>Yours is a <strong>RadioMaster RP4-TD</strong> or an <strong>RP3</strong>. Either works; pick the matching target when you flash it (Section 08).</td></tr>
+      <tr><td><strong>Arduino Pro Micro (ATmega32U4)</strong></td><td>Micro-USB and USB-C versions both work.</td></tr>
+      <tr><td><strong>5 V BEC / buck converter</strong></td><td>Powers the receiver from the car battery (XT30). The receiver resets if it runs from the Pro Micro's 5 V pin.</td></tr>
+      <tr><td><strong>Three signal wires and a USB cable</strong></td><td>Receiver → Pro Micro: signal, 5 V, ground. A USB-A cable from the Pi to the Pro Micro.</td></tr>
+      <tr><td><strong>Relay module (optional)</strong></td><td>Active-high, 5 V coil. For the VESC kill switch in Section 05.</td></tr>
+    </tbody>
+  </table></div>
+
+</section>
+
+<!-- §2 — Wire the Receiver -->
+<div class="section-anchor" id="s2"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">02</span>
+    <div class="sec-title-block">
+      <h2>Wire the Receiver to the Pro Micro</h2>
+      <div class="sec-subtitle">Three wires between receiver and Pro Micro, power from the BEC, USB to the Pi</div>
+    </div>
+  </div>
+
+  <p>Do this with everything unpowered. The receiver's labels are <strong>TX</strong>, <strong>RX</strong>, <strong>5V</strong> and <strong>GND</strong> (or <strong>G</strong>); the Pro Micro's are printed next to each pin.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>From</th><th>To</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Receiver TX</strong></td><td><strong>Pro Micro RX1</strong> (pin 0, sometimes labelled <code>RXI</code>)</td><td>Transmit goes to receive. The firmware listens on <code>Serial1</code>, which is this pin. TX-to-TX is the most common wiring mistake and gives a dead joystick.</td></tr>
+      <tr><td><strong>Receiver GND</strong></td><td><strong>Pro Micro GND</strong> and <strong>BEC −</strong></td><td>The data signal needs a common ground between all three.</td></tr>
+      <tr><td><strong>Receiver 5V</strong></td><td><strong>BEC +5 V</strong></td><td>Not the Pro Micro's 5 V pin: the receiver draws more than it can supply and resets when it enters Wi-Fi mode.</td></tr>
+      <tr><td><strong>Receiver RX</strong></td><td>Nothing</td><td>The bridge never sends to the receiver, and the Pro Micro's TX pin is 5 V while the receiver's input is 3.3 V.</td></tr>
+      <tr><td><strong>Pro Micro USB</strong></td><td>A <strong>USB-A</strong> port on the Pi</td><td>Powers the Pro Micro and carries the joystick. Use a black USB 2 port and leave the blue USB 3 ports for the camera.</td></tr>
+      <tr><td><strong>Pro Micro VCC / RAW</strong></td><td>Nothing</td><td>USB already powers it. Feeding the BEC in here too would put two supplies on one rail.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠</div>
+    <div class="callout-body">
+      <div class="callout-title">Check the BEC Before You Connect It</div>
+      <div class="callout-text">Measure the BEC's output with a meter before the receiver goes on it: it should read <strong>5.0 V</strong>, and the XT30's polarity must match the receiver's 5V and GND pads. A buck converter set to the wrong voltage destroys the receiver silently.</div>
+    </div>
+  </div>
+
+  <!-- Photo to add: images/radio_fig01_wiring.jpg. Uncomment this figure once the file is in images/.
+  <figure>
+    <div class="fig-wrap"><img src="images/radio_fig01_wiring.jpg" alt="Receiver, BEC and Pro Micro wired on the car, with the three wires between receiver and Pro Micro visible" loading="lazy"></div>
+    <figcaption><span class="fig-label">Fig 2.1</span> Receiver TX to Pro Micro pin 0, shared ground, receiver power from the BEC.</figcaption>
+  </figure>
+  -->
+</section>
+
+<!-- §3 — Flash the Pro Micro -->
+<div class="section-anchor" id="s3"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">03</span>
+    <div class="sec-title-block">
+      <h2>Flash the Pro Micro</h2>
+      <div class="sec-subtitle">Write the prebuilt firmware from the Pi over SSH; nothing to install on your laptop</div>
+    </div>
+  </div>
+
+  <p>The bridge firmware is a modified build of <a href="https://github.com/NikitaB04/ELRSController" style="color: var(--accent);">NikitaB04/ELRSController</a>. It reads CRSF frames from the receiver and checks each one's checksum, presents six axes and three buttons to the Pi as a USB joystick, centres everything and drops the kill relay within 250 ms of losing the radio link, and prints a status line you will use to check the whole radio path (Section 04).</p>
+
+  <p>You flash it <strong>from the Pi</strong>. The Pro Micro is plugged into the Pi anyway, the Pi's USB-A ports power every kind of Pro Micro, and the only tool needed is <code>avrdude</code>, one package. Nothing has to be installed on your laptop.</p>
+
+  <div class="cb"><div class="cb-header"><span class="cb-label">Firmware and DonkeyCar files</span></div><pre><span class="s">https://github.com/UCSD-Silberman-Classes-and-Projects/Markdown-Instructions/tree/main/Radio/pocket-bridge</span>
+<span class="c"># firmware.hex        the bridge firmware</span>
+<span class="c"># flash_promicro.sh   writes it from the Pi (this section)</span>
+<span class="c"># my_joystick.py      the DonkeyCar controller (Section 10)</span>
+<span class="c"># rc_probe.py         the bench test for it (Section 10)</span>
+<span class="c"># source/             the complete source, for anyone who wants to change the firmware</span></pre></div>
+  <!-- TODO: this folder does not exist yet. Publish firmware.hex, flash_promicro.sh, my_joystick.py, rc_probe.py and source/ there (or make the yellow-build repo public and point here instead). -->
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Plug the Pro Micro Into the Pi</div>
+        <div class="step-desc">Use one of the Pi's black USB 2 ports and a cable that carries data. The board's LED lights. Most boards arrive with a demo sketch, so the Pi already lists it as an Arduino:</div>
+        <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">lsusb</span> | grep -i -E <span class="v">'arduino|sparkfun'</span>
+<span class="c"># ID 2341:8036 Arduino SA Leonardo        (or 1b4f:9206 SparkFun Pro Micro; either is fine)</span></pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Copy the Files to the Pi</div>
+        <div class="step-desc">From the folder you downloaded, copy the four files to the Pi's home directory. Replace <code>XX</code> with your car's number, as in the Raspberry Pi guide.</div>
+        <div class="cb"><div class="cb-header"><span class="cb-label">Your laptop terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">scp</span> firmware.hex flash_promicro.sh my_joystick.py rc_probe.py pi@ucsdrobocar-148-XX.local:~/</pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Install avrdude and Flash</div>
+        <div class="step-desc">Close anything that has the joystick open first (<code>jstest</code>, <code>manage.py</code>). The script finds the Pro Micro, resets it into its bootloader, writes the firmware and reads it back to verify. The board restarts on its own a few seconds later.</div>
+        <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">sudo apt-get install</span> -y avrdude
+<span class="k">bash</span> ~/flash_promicro.sh ~/firmware.hex
+<span class="c"># resetting /dev/serial/by-id/usb-Arduino_LLC_Arduino_Leonardo…-if00 into the bootloader</span>
+<span class="c"># bootloader port: /dev/serial/by-id/usb-Arduino_LLC_Arduino_Leonardo-if00</span>
+<span class="c"># avrdude: 11884 bytes of flash written</span>
+<span class="c"># avrdude: 11884 bytes of flash verified</span>
+<span class="c"># avrdude done.  Thank you.</span></pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Confirm the New Firmware Is Running</div>
+        <div class="step-desc">Within a few seconds the board is back as a joystick with <strong>3 buttons</strong>. Section 04 has the check and the status line that tells you the rest.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ</div>
+    <div class="callout-body">
+      <div class="callout-title">Brand-New or Blank Board?</div>
+      <div class="callout-text">A Pro Micro with no sketch on it has no serial port, so the script cannot reset it and says so. Put it into the bootloader by hand: briefly connect <strong>RST to GND twice</strong> within a second. The bootloader shows up as a serial port for about 8 seconds and the script, which is waiting, flashes it.</div>
+    </div>
+  </div>
+</section>
+
+<!-- §4 — Verify the Bridge on the Pi -->
+<div class="section-anchor" id="s4"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">04</span>
+    <div class="sec-title-block">
+      <h2>Verify the Bridge on the Pi</h2>
+      <div class="sec-subtitle">Confirm the Pi sees the joystick, and meet the status line you will use for every later check</div>
+    </div>
+  </div>
+
+  <p>These checks work before the Pocket is set up; the joystick simply reads zero until the radio link is up.</p>
+
+  <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">lsusb</span> | grep -i leonardo
+<span class="c"># Bus 003 Device 002: ID 2341:8036 Arduino SA Leonardo (CDC ACM, HID)</span>
+
+<span class="k">ls</span> -l /dev/input/by-id/
+<span class="c"># usb-Arduino_LLC_Arduino_Leonardo_HIDFF-if02-joystick -> ../js0   (the number can change; always use this name)</span>
+
+<span class="k">jstest</span> --normal /dev/input/by-id/usb-Arduino_LLC_Arduino_Leonardo_HIDFF-if02-joystick
+<span class="c"># Joystick (Arduino LLC Arduino Leonardo) has 6 axes (X, Y, Rx, Ry, Throttle, Rudder)</span>
+<span class="c"># and 3 buttons (Btn0, Btn1, Btn2).      ← 3 buttons confirms the Section 03 firmware is running</span></pre></div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠</div>
+    <div class="callout-body">
+      <div class="callout-title">Never Assume <code>js0</code></div>
+      <div class="callout-text">Joystick numbers follow the order devices come up at boot. A built-in Logitech receiver or a second controller can push the Pro Micro to <code>js1</code>. Always use the <code>/dev/input/by-id/…</code> name: it is the same on every car running this firmware.</div>
+    </div>
+  </div>
+
+  <h3>The Status Line</h3>
+  <p>The firmware prints one line a second on its USB serial port with everything you need to diagnose the link: how many bytes and valid frames arrived, how many failed the checksum, whether the link is up, and the raw value of each radio channel. Reading it is harmless; the bridge keeps working as a joystick at the same time.</p>
+
+  <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre>p=/dev/serial/by-id/usb-Arduino_LLC_Arduino_Leonardo_HIDFF-if00
+<span class="k">stty</span> -F $p 115200 raw -echo &amp;&amp; <span class="k">timeout</span> 5 <span class="k">cat</span> $p
+<span class="c"># t=84000 loops=72000 bytes=3900 frames=145 crc=0 link=1 ch=1016,174,1008,992,191,997,1792,191,997,997,997,997</span></pre></div>
+
+  <div class="tw"><table>
+    <thead><tr><th>Field</th><th>Healthy value</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>frames</code></td><td>about <strong>110–150</strong> at a 150 Hz packet rate</td><td>Valid CRSF channel frames in the last second. <strong>0</strong> means the receiver's output is not CRSF at 115200, or the wire is wrong.</td></tr>
+      <tr><td><code>bytes</code></td><td>about 3000–4000</td><td>Bytes received. Bytes without frames means the format is wrong (SBUS, or the wrong baud rate).</td></tr>
+      <tr><td><code>crc</code></td><td>low and steady</td><td>Frames rejected by the checksum since power-up. A fast-climbing count points at a bad connection or the wrong packet rate.</td></tr>
+      <tr><td><code>link</code></td><td><strong>1</strong></td><td>0 once no valid frame has arrived for 250 ms: the failsafe is active.</td></tr>
+      <tr><td><code>ch</code></td><td>centre ≈ <strong>992</strong>, range 172–1811; switches <strong>191 / 997 / 1792</strong></td><td>Raw channels CH1–CH12 as the receiver sends them, on ExpressLRS's own scale (the same for every radio, not a Pocket setting). The fastest way to see what the Pocket is doing.</td></tr>
+      <tr><td><code>loops</code></td><td>tens of thousands</td><td>Main-loop passes per second. A tiny number means the firmware is stalling.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout error">
+    <div class="callout-icon">🚨</div>
+    <div class="callout-body">
+      <div class="callout-title">Never Open That Port at 1200 Baud</div>
+      <div class="callout-text">1200 baud is the "reset into the bootloader" signal for this board. Any other speed is fine for reading the status line.</div>
+    </div>
+  </div>
+</section>
+
+<!-- §5 — Kill-Switch Relay -->
+<div class="section-anchor" id="s5"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">05</span>
+    <div class="sec-title-block">
+      <h2>Kill-Switch Relay</h2>
+      <div class="sec-subtitle">A hardware stop that does not depend on the Pi, wired so that losing the Pro Micro stops the car</div>
+    </div>
+    <div class="sec-badges"><span class="badge badge-warn">Not yet verified on a car</span></div>
+  </div>
+
+  <p>The VESC has a kill-switch input: with <strong>Kill Switch Mode</strong> set to <strong>ADC2 Low</strong>, pulling its ADC2 pin to ground stops the motor regardless of what the Pi sends. The Pro Micro drives a relay into that pin from its <strong>pin 8</strong>. In this firmware pin 8 is HIGH <strong>only while the arm switch is on and the radio link is up</strong>. Everything else, including a Pro Micro with no power, no USB or crashed firmware, leaves the relay at rest, so at rest must mean "kill". That is what the wiring below does.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>Relay contact</th><th>Connect to</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td><strong>COM</strong></td><td>VESC <strong>ADC2</strong></td><td>The pin the VESC watches</td></tr>
+      <tr><td><strong>NO</strong> (closed when energised)</td><td>VESC <strong>3.3 V</strong> (use 5 V only if your VESC's ADC inputs are rated for it; check its pinout)</td><td>Armed and linked: ADC2 high, motor allowed</td></tr>
+      <tr><td><strong>NC</strong> (closed at rest)</td><td>VESC <strong>GND</strong></td><td>Disarmed, link lost, or Pro Micro dead: ADC2 low, motor killed</td></tr>
+      <tr><td><strong>Module VCC / GND / IN</strong></td><td>Pro Micro <strong>VCC</strong>, <strong>GND</strong>, <strong>pin 8</strong></td><td>Use a relay <em>module</em> (it has the driver transistor and diode), and an <strong>active-high</strong> one: an active-low module reverses all of this.</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>The ADC2, 3.3 V and GND pins are on the VESC's <strong>COMM</strong> (or UART) connector, not on the servo or motor connectors. On many VESCs it is a small JST socket or a row of pads under the heat-shrink, labelled next to the pins.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Set the VESC</div>
+        <div class="step-desc">In VESC Tool, under <strong>App Settings → General</strong>, set <strong>Kill Switch Mode</strong> to <strong>ADC2 Low</strong> and write the app configuration.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Meter Check Before the VESC Is Connected</div>
+        <div class="step-desc">With the relay wired to the Pro Micro but <strong>not</strong> to the VESC, measure COM against GND. It should read high only while the Pocket is on and the arm switch is on, and drop to 0 V when you disarm, switch the Pocket off, or unplug the Pro Micro's USB. If it reads high at rest, the module is active-low or NO/NC are swapped.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Test With the Wheels Off the Ground</div>
+        <div class="step-desc">Connect COM to ADC2, spin the motor gently under DonkeyCar, then disarm: the motor must stop. Then switch the Pocket off, and then unplug the Pro Micro: the motor must stop both times.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- §6 — Before You Flash -->
+<div class="section-anchor" id="s6"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">06</span>
+    <div class="sec-title-block">
+      <h2>Before You Flash the Pocket</h2>
+      <div class="sec-subtitle">The right radio, charged cells, the Configurator, and the class settings</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Charge the Cells</div>
+        <div class="step-desc">The Pocket runs on two <strong>18650</strong> cells and charges them itself over its USB-C port with the radio off. Flat cells make the radio <strong>switch itself off a few seconds after power-up</strong>, with a low-battery alarm first. Leave it charging before a flashing session; flashing and Wi-Fi mode both draw a lot.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Install the ExpressLRS Configurator</div>
+        <div class="step-desc">Download it from the link below. On an Apple Silicon Mac take the <strong>arm64</strong> <code>.dmg</code>, on an Intel Mac the <strong>x64</strong> one; if macOS blocks the first launch, allow it under <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>. The Configurator's own version does not matter; you choose the firmware version inside it.</div>
+        <div class="cb"><div class="cb-header"><span class="cb-label">Configurator downloads</span></div><pre><span class="s">https://github.com/ExpressLRS/ExpressLRS-Configurator/releases</span></pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Know Your Team's Radio Settings</div>
+        <div class="step-desc">Your binding phrase is <code>148-T</code> followed by your team number, for example <code>148-T7</code>. The radio and the receiver must carry exactly the same phrase: it is what pairs them, and it is why your radio ignores every other team's car. For updates, both devices join the Wi-Fi network <code>UCSDRoboCar</code> (password <code>UCSDrobocars2018</code>).</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ</div>
+    <div class="callout-body">
+      <div class="callout-title">One Phrase per Team</div>
+      <div class="callout-text">ExpressLRS radios that share a binding phrase interfere with each other when they are on at the same time, and a receiver takes commands from any radio that has its phrase. One phrase per team keeps the track clean and your car yours. Leave <strong>Model Match</strong> off in the ExpressLRS tools; it is only needed when phrases are shared.</div>
+    </div>
+  </div>
+
+  <h3>Settings You Will Enter</h3>
+  <p>These are the Configurator's <strong>Device options</strong> for both devices. You will enter them in Sections 07 and 08.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>Setting</th><th>Radio (TX)</th><th>Receiver (RX)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Firmware version</strong></td><td>Official Releases → <strong>3.3.2</strong></td><td><strong>3.3.2</strong></td></tr>
+      <tr><td><strong>Device</strong></td><td>RadioMaster 2.4 GHz → <strong>RadioMaster Pocket Internal 2.4GHz TX</strong></td><td>RadioMaster 2.4 GHz → <strong>RP4-TD True Diversity</strong> or <strong>RP3 Diversity</strong>, whichever you have</td></tr>
+      <tr><td><strong>Flashing method</strong></td><td><strong>EdgeTxPassthrough</strong></td><td><strong>WIFI</strong></td></tr>
+      <tr><td><strong>Regulatory domain</strong></td><td>ISM_2400</td><td>ISM_2400</td></tr>
+      <tr><td><strong>Binding phrase</strong></td><td><code>148-T</code> + your team number, e.g. <code>148-T7</code></td><td>the same phrase, exactly</td></tr>
+      <tr><td><strong>Home Wi-Fi SSID / password</strong></td><td><code>UCSDRoboCar</code> / <code>UCSDrobocars2018</code></td><td>the same</td></tr>
+      <tr><td><strong>AUTO_WIFI_ON_INTERVAL</strong></td><td>60</td><td>60</td></tr>
+      <tr><td><strong>UART_INVERTED</strong></td><td>ticked</td><td>—</td></tr>
+      <tr><td><strong>LOCK_ON_FIRST_CONNECTION</strong></td><td>—</td><td>ticked</td></tr>
+      <tr><td><strong>RCVR_UART_BAUD</strong></td><td>—</td><td><strong>115200</strong>. If your Configurator does not show this option, set it on the receiver's web page instead (Section 08).</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- §7 — Flash the Pocket -->
+<div class="section-anchor" id="s7"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">07</span>
+    <div class="sec-title-block">
+      <h2>Flash the Pocket</h2>
+      <div class="sec-subtitle">ExpressLRS 3.3.2 on the radio's internal module, over USB, then the packet rate</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Plug In the Top USB-C Port With the Radio On</div>
+        <div class="step-desc">The Pocket has two USB-C ports; the <strong>top</strong> one carries data. A menu appears on the radio's screen as soon as the cable goes in.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Choose USB Serial (VCP) on the Radio</div>
+        <div class="step-desc">Scroll with the roller and press it to select <strong>USB Serial (VCP)</strong>. This option is not in the ExpressLRS tools page; it is EdgeTX's USB prompt. If no prompt appears, set <strong>SYS → Hardware → USB Mode</strong> to <strong>Ask</strong> and replug.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Check That Your Laptop Sees It</div>
+        <div class="step-desc">The Pocket appears as a USB serial port: <code>/dev/cu.usbmodem…</code> on macOS, <code>/dev/ttyACM0</code> on Linux, a <code>COM</code> port on Windows. The Configurator lists it under <strong>Manual serial device selection</strong>. If nothing appears, see Troubleshooting.</div>
+        <div class="cb"><div class="cb-header"><span class="cb-label">Your laptop terminal (macOS / Linux)</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">ls</span> /dev/cu.usbmodem* /dev/ttyACM* 2&gt;/dev/null
+<span class="c"># macOS: /dev/cu.usbmodem00000000001B1    Linux: /dev/ttyACM0    ("Radiomaster Pocket Serial Port")</span></pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Flash in the Configurator</div>
+        <div class="step-desc">Enter the radio column of the settings table in Section 06. Under <strong>Manual serial device selection</strong> pick the port above (automatic selection also works when the radio is the only serial device). Click <strong>FLASH</strong> and leave the radio on and connected until it reports success.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Check the Version and Set the Packet Rate</div>
+        <div class="step-desc">Open <strong>SYS → Tools → ExpressLRS</strong>. The version is shown at the bottom of the page. On the same page set <strong>Packet Rate</strong> to <strong>150Hz</strong>. Leave the <strong>D</strong>, <strong>F</strong> and <strong>Full</strong> modes alone: they push data out of the receiver faster than the 115200 baud wire to the Pro Micro can carry, and the bridge starts dropping frames. 150 Hz is many times faster than DonkeyCar's control loop and gives the longest range.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-icon">✓</div>
+    <div class="callout-body">
+      <div class="callout-title">Already on 3.3.2?</div>
+      <div class="callout-text">If the version at the bottom of the ExpressLRS page already reads 3.3.2 and the radio binds to your receiver (Section 08), the radio does not need flashing. Flash it when the binding phrase is wrong or unknown.</div>
+    </div>
+  </div>
+</section>
+
+<!-- §8 — Flash & Configure the Receiver -->
+<div class="section-anchor" id="s8"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">08</span>
+    <div class="sec-title-block">
+      <h2>Flash &amp; Configure the Receiver</h2>
+      <div class="sec-subtitle">3.3.2 over Wi-Fi, then the two settings the bridge depends on: CRSF at 115200</div>
+    </div>
+    <div class="sec-badges"><span class="badge badge-critical">Critical</span></div>
+  </div>
+
+  <p>The Configurator cannot build and flash a receiver over Wi-Fi in one go on a laptop with a single Wi-Fi interface: building needs the internet, and the receiver's hotspot has none. So you <strong>build first</strong> on your normal network, then <strong>upload</strong> the file from the receiver's own web page.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Build the Receiver Firmware</div>
+        <div class="step-desc">On your normal Wi-Fi, enter the receiver column of the table in Section 06, with <strong>WIFI</strong> as the flashing method and the <strong>same binding phrase</strong> as the radio. Click <strong>BUILD</strong>, not FLASH, and note where it saves the file: <code>firmware.bin</code> for an RP4-TD, <code>firmware.bin.gz</code> for an RP3.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Put the Receiver Into Wi-Fi Mode</div>
+        <div class="step-desc">Power the receiver (from the BEC, Section 02) with the <strong>Pocket off</strong>. After 60 seconds without a radio its LED starts blinking fast: it is now a Wi-Fi hotspot. If the receiver is already bound to your radio, you can instead open <strong>SYS → Tools → ExpressLRS → WiFi Connectivity → Enable Rx WiFi</strong> on the Pocket. That entry is on the main ExpressLRS page, not under Other Devices.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Upload the File</div>
+        <div class="step-desc">Join the Wi-Fi network <strong>ExpressLRS RX</strong> (password <code>expresslrs</code>; your laptop loses internet while connected), open <strong>http://10.0.0.1</strong>, go to the <strong>UPDATE</strong> tab and upload the file. Wait for the success message. If the receiver has already joined <strong>UCSDRoboCar</strong>, it does not start its own hotspot while that network is in range: connect your laptop to the same network and find it in the Configurator's <strong>Network Devices</strong> list (WIFI flashing method), or ask your instructor for its address.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Set the Serial Protocol to CRSF and the Baud to 115200</div>
+        <div class="step-desc">Still on the receiver's page: on the <strong>MODEL</strong> tab set <strong>Serial Protocol</strong> to <strong>CRSF</strong> (plain, not Inverted) and click that tab's <strong>Save</strong>. Then on the <strong>OPTIONS</strong> tab set <strong>UART baud</strong> to <strong>115200</strong> and click its <strong>Save</strong>. Reload the page and confirm both. Reflashing resets these, so repeat this step after any future flash unless RCVR_UART_BAUD was in the build.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Bind and Check</div>
+        <div class="step-desc">Rejoin your normal Wi-Fi. Turn the <strong>Pocket on first</strong>, then power-cycle the receiver so it starts with the new settings. Its LED should go <strong>solid</strong>, and the ExpressLRS page on the Pocket shows a <strong>C</strong> for connected. Switch the Pocket off and the LED should start blinking within a second or two: that is your receiver.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout error">
+    <div class="callout-icon">🚨</div>
+    <div class="callout-body">
+      <div class="callout-title">CRSF, Not SBUS</div>
+      <div class="callout-text">Leave the receiver's Serial Protocol on <strong>CRSF</strong>; never choose SBUS or Inverted SBUS. The bridge firmware reads CRSF frames at 115200 baud. ExpressLRS sends SBUS at a fixed 100000 baud with the signal inverted, so with SBUS or Inverted SBUS selected the Pro Micro decodes nothing and <code>jstest</code> shows every axis stuck at −32767. The default CRSF speed is 420000, which the Pro Micro cannot read either; that is what the 115200 setting is for.</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠</div>
+    <div class="callout-body">
+      <div class="callout-title">UART Baud Shows 100000 and Cannot Be Changed?</div>
+      <div class="callout-text">The web page locks the baud field at 100000 while the Serial Protocol is SBUS or Inverted SBUS. Change the protocol to CRSF on the MODEL tab first; the field unlocks at once. Also, the receiver only applies a protocol change after a restart, so power-cycle it before you test.</div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ</div>
+    <div class="callout-body">
+      <div class="callout-title">Which Receiver Do You Have?</div>
+      <div class="callout-text">Once bound, the Pocket names it under <strong>SYS → Tools → ExpressLRS → Other Devices</strong>: <strong>RM RP4-TD 2400</strong> or <strong>RM RP3</strong>. The Configurator target must match; flashing the wrong one fails or leaves the receiver dark. The receiver's Wi-Fi page also shows its target name at the top.</div>
+    </div>
+  </div>
+
+  <!-- Photo to add: images/radio_fig02_rx_options.png. Uncomment this figure once the file is in images/.
+  <figure>
+    <div class="fig-wrap"><img src="images/radio_fig02_rx_options.png" alt="The receiver's web page, OPTIONS tab, with UART baud set to 115200 and the binding UID hidden" loading="lazy"></div>
+    <figcaption><span class="fig-label">Fig 8.1</span> The receiver's OPTIONS tab after the change: UART baud 115200.</figcaption>
+  </figure>
+  -->
+</section>
+
+<!-- §9 — Set Up the Pocket Model -->
+<div class="section-anchor" id="s9"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">09</span>
+    <div class="sec-title-block">
+      <h2>Set Up the Pocket Model</h2>
+      <div class="sec-subtitle">Stick calibration, switch types, and the mixes that put each switch on a channel</div>
+    </div>
+  </div>
+
+  <p>The radio decides what each channel carries. Two settings on a fresh or borrowed Pocket are often wrong, and each produces a car that does nothing while the link looks healthy: an uncalibrated stick sends a constant value, and a switch with no hardware type is ignored by every mix. Do these three steps in order, then check with the status line.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Calibrate the Sticks</div>
+        <div class="step-desc">Open <strong>SYS → Hardware → Calibration</strong> and follow the prompts: sticks centred, then each stick to its full extent in every direction. Symptom when this is wrong: CH1–CH4 in the status line sit near <strong>1800</strong> whatever you do with the sticks.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Give Each Switch a Hardware Type</div>
+        <div class="step-desc">In <strong>SYS → Hardware</strong>, scroll to the switches. Each one you intend to use must have a type; <strong>NONE</strong> means it always reads 0. Set the type by how the switch behaves in your hand:</div>
+        <div class="tw"><table>
+          <thead><tr><th>Switch on the Pocket</th><th>Behaviour</th><th>Type</th></tr></thead>
+          <tbody>
+            <tr><td><strong>SA</strong> (bumper with an indicator LED)</td><td>Two positions, stays where put</td><td><strong>2POS</strong></td></tr>
+            <tr><td><strong>SB</strong> (rocker)</td><td>Three positions</td><td><strong>3POS</strong></td></tr>
+            <tr><td><strong>SC</strong></td><td>Three positions</td><td><strong>3POS</strong></td></tr>
+            <tr><td><strong>SD</strong> (bumper)</td><td>Two positions</td><td><strong>2POS</strong></td></tr>
+            <tr><td><strong>SE</strong> (large pad)</td><td>Springs back when released</td><td><strong>TOGGLE</strong></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Add the Switch Mixes</div>
+        <div class="step-desc">Open <strong>MDL → MIXES</strong>. CH1–CH4 are already <code>Ail</code>, <code>Ele</code>, <code>Thr</code>, <code>Rud</code> at weight 100; leave them. Scroll to <strong>CH5</strong>, <strong>long-press</strong> the roller (a short press only selects the line), choose <strong>Edit</strong>, and set <strong>Source</strong> to <strong>SA</strong> by flipping SA; the radio picks up the switch you move. Leave the <strong>Switch</strong> field empty: that field only decides <em>when</em> a mix is active, and a mix with no source outputs 0 whatever the switch does. Weight stays 100. Repeat: <strong>CH6 ← SB</strong>, <strong>CH7 ← SC</strong>, <strong>CH8 ← SD</strong>, <strong>CH9 ← SE</strong>.</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>What Each Control Does</h3>
+  <p>This is the layout the DonkeyCar controller in Section 10 expects. The Pocket's left stick does not spring back up and down, which is why it is the throttle: you set a speed and it holds.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>Control</th><th>Channel</th><th>Joystick input on the Pi</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Right stick, left–right</strong></td><td>CH1</td><td>axis <code>Rx</code></td><td>Steering</td></tr>
+      <tr><td><strong>Left stick, up–down</strong></td><td>CH2</td><td>axis <code>Ry</code></td><td>Throttle amount: <strong>bottom = stopped</strong>, top = full. Holds its position</td></tr>
+      <tr><td><strong>SA</strong> (LED on)</td><td>CH5</td><td>button 0</td><td><strong>Arm.</strong> LED off = disarmed: throttle 0, user mode, no recording</td></tr>
+      <tr><td><strong>SB</strong></td><td>CH6</td><td>axis <code>Rudder</code></td><td>Direction: forward / <strong>neutral</strong> / reverse</td></tr>
+      <tr><td><strong>SC</strong></td><td>CH7</td><td>axis <code>Throttle</code></td><td>Drive mode: <strong>top = user</strong> (you drive), middle = autopilot steers, bottom = full autopilot</td></tr>
+      <tr><td><strong>SD</strong></td><td>CH8</td><td>button 1</td><td>Recording enabled (records only while armed, moving forward, in user mode)</td></tr>
+      <tr><td><strong>SE</strong> pad</td><td>CH9</td><td>button 2</td><td>Spare (a dead-man switch later)</td></tr>
+      <tr><td>Right stick up–down, left stick left–right</td><td>CH3, CH4</td><td>axes <code>Y</code>, <code>X</code></td><td>Unused</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Check It</h3>
+  <p>With the Pro Micro on the Pi and the receiver bound, read the status line from Section 04 while you move one control at a time. Switches step between <strong>191</strong>, <strong>997</strong> and <strong>1792</strong>; sticks sweep from about <strong>172</strong> to <strong>1811</strong> with centre near <strong>992</strong>. Those numbers are ExpressLRS's channel scale, the same on every radio; a stick that rests a little off 992 is mechanical centre and trim. If SA's LED-on position reads 191 instead of 1792, change the CH5 mix weight to <strong>−100</strong>.</p>
+
+  <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal — SA on, left stick at the bottom, SB middle, SC top, SD off</span></div><pre><span class="c">#                                                   CH1  CH2 CH3  CH4 CH5  CH6 CH7  CH8 CH9</span>
+t=90000 loops=71000 bytes=3000 frames=110 crc=0 link=1 ch=1016,174,1008,992,1792,997,1792,191,997,997,997,997</pre></div>
+
+  <!-- Photo to add: images/radio_fig03_pocket_controls.jpg. Uncomment this figure once the file is in images/.
+  <figure>
+    <div class="fig-wrap"><img src="images/radio_fig03_pocket_controls.jpg" alt="The RadioMaster Pocket with the sticks and switches SA to SE labelled" loading="lazy"></div>
+    <figcaption><span class="fig-label">Fig 9.1</span> The Pocket's controls as used in this guide.</figcaption>
+  </figure>
+  -->
+</section>
+
+<!-- §10 — Connect It to DonkeyCar -->
+<div class="section-anchor" id="s10"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">10</span>
+    <div class="sec-title-block">
+      <h2>Connect It to DonkeyCar</h2>
+      <div class="sec-subtitle">The custom controller, its arming interlock, a bench test, then the first drive with the wheels up</div>
+    </div>
+  </div>
+
+  <p>DonkeyCar loads a custom controller from <code>~/mycar/my_joystick.py</code> when <code>CONTROLLER_TYPE</code> is <code>"custom"</code>. The file in the download folder maps the Pocket as in the table above, and adds two interlocks that a game-controller mapping does not need, because the throttle stick holds its position and DonkeyCar ignores where the sticks were when it started.</p>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ</div>
+    <div class="callout-body">
+      <div class="callout-title">The Arming Interlock</div>
+      <div class="callout-text">
+        <strong>To arm:</strong> throttle stick at the <strong>bottom</strong>, SC at the <strong>top</strong> (user), then SA on. Arming takes about half a second. If the stick is not at the bottom or SC is not on user, arming is <strong>refused</strong> and stays refused until you cycle SA off and on. The log tells you why.<br><br>
+        <strong>Direction changes</strong> with SB only engage when the stick is at the bottom; neutral applies at once. So the motor is never thrown from forward to reverse under power.<br><br>
+        <strong>Disarmed</strong> (SA off, or the radio link lost) means throttle 0, user mode and no recording, whatever the sticks say.
+      </div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Copy the Controller Into Your Car Folder</div>
+        <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal (files copied to the Pi first)</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">cp</span> my_joystick.py rc_probe.py ~/mycar/</pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Set the Controller in <code>myconfig.py</code></div>
+        <div class="step-desc">Replace your existing controller block in <code>~/mycar/myconfig.py</code> with this. There is no <code>JOYSTICK_DEVICE_FILE</code> line: DonkeyCar does not pass it to a custom controller, so <code>my_joystick.py</code> holds the device path itself.</div>
+        <div class="cb"><div class="cb-header"><span class="cb-label">~/mycar/myconfig.py</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre>CONTROLLER_TYPE = <span class="v">"custom"</span>
+USE_JOYSTICK_AS_DEFAULT = True
+JOYSTICK_MAX_THROTTLE = 0.5
+JOYSTICK_THROTTLE_DIR = 1.0     <span class="c"># left stick up = more throttle (bottom = stopped; SB sets direction)</span>
+JOYSTICK_STEERING_SCALE = 1.0   <span class="c"># -1.0 if the car steers the wrong way</span>
+JOYSTICK_DEADZONE = 0.05        <span class="c"># bottom 5% of the throttle stick counts as stopped</span>
+AUTO_RECORD_ON_THROTTLE = False <span class="c"># SD enables recording instead</span></pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Bench-Test the Mapping Without the Motor</div>
+        <div class="step-desc"><code>rc_probe.py</code> runs the controller alone, with no camera and no motor, and prints a line whenever steering, throttle, mode, recording, armed or direction changes. Work through the controls: steer, try to arm with the stick up (refused), arm properly, push the throttle up, change direction, flip SD, disarm.</div>
+        <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">cd</span> ~/mycar &amp;&amp; ~/env/bin/python rc_probe.py 90
+<span class="c">#   49261ms angle=+0.00 throttle=+0.00 mode=user recording=False armed=True direction=+0</span>
+<span class="c">#   80951ms angle=+0.00 throttle=+0.50 mode=user recording=False armed=True direction=+1</span></pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">First Drive, Wheels Off the Ground</div>
+        <div class="step-desc">Car on a stand, wheels clear, battery connected (the VESC only appears with it). Pocket on, receiver LED solid, <strong>SA off, throttle stick at the bottom, SC at the top, SB in the middle, SD off</strong>. Then start DonkeyCar and run through the checks below in order.</div>
+        <div class="cb"><div class="cb-header"><span class="cb-label">Pi terminal</span><button class="copy-btn" onclick="doCopy(this)">COPY</button></div><pre><span class="k">cd</span> ~/mycar &amp;&amp; ~/env/bin/python manage.py drive</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>Do</th><th>Expect</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Disarmed: push the throttle stick up, then back down</td><td>The wheels do not turn</td></tr>
+      <tr><td>2</td><td>Right stick left and right</td><td>Front wheels turn the matching way (if not, <code>JOYSTICK_STEERING_SCALE = -1.0</code>)</td></tr>
+      <tr><td>3</td><td>SA on</td><td>Log: <code>Armed: neutral</code></td></tr>
+      <tr><td>4</td><td>SB forward, stick up slightly, then back to the bottom</td><td>Wheels turn slowly forwards, then stop</td></tr>
+      <tr><td>5</td><td>SB reverse, stick up slightly, then back down</td><td>Wheels turn backwards, then stop</td></tr>
+      <tr><td>6</td><td>SB forward, stick up, then <strong>SA off</strong></td><td>Wheels stop at once</td></tr>
+      <tr><td>7</td><td>Re-arm, stick up, then <strong>switch the Pocket off</strong></td><td>Wheels stop within about half a second, and do not restart when the Pocket comes back on</td></tr>
+      <tr><td>8</td><td><kbd>Ctrl</kbd>-<kbd>C</kbd></td><td>DonkeyCar exits</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠</div>
+    <div class="callout-body">
+      <div class="callout-title">The Throttle Stick Does Not Spring Back</div>
+      <div class="callout-text">Letting go of the Pocket does not stop the car. Your stops are <strong>SA</strong>, switching the <strong>Pocket off</strong>, and the relay once it is wired. Keep <code>VESC_MAX_SPEED_PERCENT</code> low (0.1 is a sensible start) until you have used all of them on the stand, and never arm with the wheels on the ground until you have.</div>
+    </div>
+  </div>
+</section>
+
+<!-- §11 — Troubleshooting -->
+<div class="section-anchor" id="s11"></div>
+<section class="section">
+  <div class="sec-header">
+    <span class="sec-num">11</span>
+    <div class="sec-title-block">
+      <h2>Troubleshooting</h2>
+      <div class="sec-subtitle">Every one of these happened while writing this guide</div>
+    </div>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td>USB-C Pro Micro completely dark when plugged into a laptop: no LED, no serial port</td><td>Most USB-C Pro Micro boards lack the two resistors that tell a USB-C host to supply power, so on a USB-C to USB-C cable the board never turns on. It looks exactly like a dead board</td><td>Use a <strong>USB-A</strong> port, or a USB-A cable through a USB-C adapter. USB-A always supplies 5 V</td></tr>
+      <tr><td>Pocket or Pro Micro plugged into a Mac, LED on, but no serial port appears</td><td>macOS asks before a new USB accessory may connect. Until the prompt is answered the device is invisible everywhere, including the system log</td><td>Click <strong>Allow</strong> on the prompt, or allow it under System Settings → Privacy &amp; Security</td></tr>
+      <tr><td>No USB prompt on the Pocket when the cable goes in</td><td>Bottom port used, or USB Mode not set to Ask</td><td>Use the <strong>top</strong> port; SYS → Hardware → USB Mode → Ask</td></tr>
+      <tr><td>Pocket switches itself off seconds after power-up</td><td>Flat 18650 cells</td><td>Charge over USB-C with the radio off; replace cells that will not hold charge</td></tr>
+      <tr><td>Receiver LED blinks fast</td><td>Wi-Fi mode: no radio heard for 60 s</td><td>Pocket on first, then power-cycle the receiver. Solid = bound</td></tr>
+      <tr><td><code>jstest</code>: every axis at <strong>−32767</strong>, nothing moves; status line <code>frames=0</code></td><td>Receiver not sending CRSF at 115200 (SBUS selected, or baud 420000), or TX/RX swapped at the Pro Micro</td><td>Section 08 step 4; check receiver TX goes to Pro Micro pin 0; power-cycle the receiver after changing the protocol</td></tr>
+      <tr><td>UART baud on the receiver page stuck at 100000</td><td>Protocol is SBUS; the page locks the field</td><td>Set Serial Protocol to CRSF first, then the baud</td></tr>
+      <tr><td>Axes jitter across their whole range with the sticks still</td><td>A different firmware on the Pro Micro, which decodes corrupted frames as stick input</td><td>Flash the firmware from Section 03; <code>jstest</code> should then report 3 buttons</td></tr>
+      <tr><td>Sticks give constant values near 1800</td><td>Stick calibration lost</td><td>SYS → Hardware → Calibration</td></tr>
+      <tr><td>Switches never change their channels (CH5 at 191, CH6–8 at 997)</td><td>Switch hardware type is NONE, or the switch is in the mix's Switch field instead of Source</td><td>Section 09 steps 2 and 3</td></tr>
+      <tr><td>SA's LED-on position reads 191</td><td>Switch direction</td><td>CH5 mix weight −100</td></tr>
+      <tr><td><code>Arm refused: throttle stick at …</code></td><td>The interlock: stick not at the bottom</td><td>Pull it fully down, cycle SA off and on</td></tr>
+      <tr><td><code>Arm refused: SC is not on user</code></td><td>SC not at the top</td><td>Move it, cycle SA off and on</td></tr>
+      <tr><td><code>manage.py drive</code> cannot find the VESC</td><td>Battery not connected: the VESC's USB only enumerates with it</td><td>Connect the LiPo</td></tr>
+      <tr><td>DonkeyCar says the joystick is missing</td><td>Wrong device path or Pro Micro unplugged</td><td><code>ls /dev/input/by-id/</code>; the name must match the one in <code>my_joystick.py</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout tip">
+    <div class="callout-icon">✓</div>
+    <div class="callout-body">
+      <div class="callout-title">Setup Complete</div>
+      <div class="callout-text">If the drive checks in Section 10 all passed, your car drives from the Pocket with two independent stops. Wire the relay (Section 05) before the first run on the ground, and raise the speed cap in small steps.</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <p style="text-align:center; font-size:13px;">UCSD Jacobs School of Engineering — ECE/MAE 148 Intro to Autonomous Vehicles</p>
+</section>
+
+</div><!-- /content -->
+</div><!-- /main -->
+</main>
+
+<button id="btt" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑</button>
+
+<script>
+// ── COPY BUTTON ──────────────────────────────────────────────────
+function doCopy(btn) {
+  const pre = btn.closest('.cb').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'COPIED ✓';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('ok'); }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = 'COPIED ✓'; btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('ok'); }, 2000);
+  });
+}
+
+// ── BACK TO TOP ──────────────────────────────────────────────────
+const btt = document.getElementById('btt');
+window.addEventListener('scroll', () => {
+  btt.classList.toggle('show', window.scrollY > 500);
+});
+
+// ── READ PROGRESS ────────────────────────────────────────────────
+const progressFill = document.getElementById('read-progress-fill');
+const npFill = document.getElementById('np-fill');
+const npPct = document.getElementById('np-pct');
+window.addEventListener('scroll', () => {
+  const docH = document.documentElement.scrollHeight - window.innerHeight;
+  const pct = docH > 0 ? Math.min(100, Math.round((window.scrollY / docH) * 100)) : 0;
+  progressFill.style.width = pct + '%';
+  npFill.style.width = pct + '%';
+  npPct.textContent = pct + '%';
+});
+
+// ── ACTIVE NAV ───────────────────────────────────────────────────
+const anchors = document.querySelectorAll('.section-anchor[id]');
+const navLinks = document.querySelectorAll('.nav-link');
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+      if (a) {
+        a.classList.add('active');
+      }
+    }
+  });
+}, { rootMargin: '-60px 0px -80% 0px' });
+anchors.forEach(a => io.observe(a));
+
+// ── NAV SEARCH ───────────────────────────────────────────────────
+function filterNav(q) {
+  const term = q.toLowerCase();
+  document.querySelectorAll('.nav-link').forEach(l => {
+    l.style.display = l.textContent.toLowerCase().includes(term) ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-group-label').forEach(g => {
+    let next = g.nextElementSibling;
+    let hasVisible = false;
+    while (next && !next.classList.contains('nav-group-label')) {
+      if (next.style.display !== 'none') hasVisible = true;
+      next = next.nextElementSibling;
+    }
+    g.style.display = hasVisible ? '' : 'none';
+  });
+}
+
+// ── MOBILE SIDEBAR CLOSE ON NAV CLICK ────────────────────────────
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', () => {
+    if (window.innerWidth <= 768) {
+      document.querySelector('.sidebar').classList.remove('open');
+    }
+  });
+});
+</script>
+</body>
+</html>
